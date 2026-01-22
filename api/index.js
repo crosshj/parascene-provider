@@ -1,6 +1,5 @@
 import sharp from "sharp";
-import fs from "fs";
-import path from "path";
+import { renderBitmapToPng } from "../fonts/bitmap.js";
 
 const html = String.raw;
 
@@ -125,64 +124,6 @@ function isValidHexColor(color) {
   return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
 }
 
-// Cached data URI for embedded font
-let cachedFontDataUri = null;
-
-function getEmbeddedFontDataUri() {
-  if (cachedFontDataUri !== null) return cachedFontDataUri;
-  const fontPath = path.join(
-    process.cwd(),
-    "fonts",
-    "IBMPlexSans-Regular.woff2",
-  );
-  try {
-    const fontBuffer = fs.readFileSync(fontPath);
-    const base64 = fontBuffer.toString("base64");
-    cachedFontDataUri = `data:font/woff2;base64,${base64}`;
-  } catch (err) {
-    console.error("Failed to load embedded font", err);
-    cachedFontDataUri = null;
-  }
-  return cachedFontDataUri;
-}
-
-function buildTextSvg({ text, width, height, textColor, backgroundColor }) {
-  const fontDataUri = getEmbeddedFontDataUri();
-  const fontFace = fontDataUri
-    ? `@font-face { font-family: "IBMPlexSansEmbed"; src: url(${fontDataUri}) format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }`
-    : "";
-
-  return html`
-    <svg
-      width="${width}"
-      height="${height}"
-      viewBox="0 0 ${width} ${height}"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <style>
-        ${fontFace} text {
-          font-family: ${fontDataUri
-            ? "IBMPlexSansEmbed"
-            : "Arial, sans-serif"};
-        }
-      </style>
-      <rect width="100%" height="100%" fill="${backgroundColor}" />
-      <text
-        x="50%"
-        y="50%"
-        font-size="220"
-        font-weight="700"
-        fill="${textColor}"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        style="paint-order: stroke fill; text-rendering: optimizeLegibility;"
-      >
-        ${text}
-      </text>
-    </svg>
-  `;
-}
-
 /**
  * Generates a 1024x1024 image with centered text rendered on a white background
  * @param {Object} args - Generation arguments
@@ -213,24 +154,17 @@ async function generateTextImage(args = {}) {
 
   const backgroundColor = "#f0f0f0";
 
-  // Escape text for safe SVG rendering
+  // Escape text (still useful if we ever mix SVG; harmless here)
   const escapedText = escapeSvgText(text);
 
-  // Create SVG with embedded IBM Plex Sans (woff2 in fonts/)
-  const svg = buildTextSvg({
+  // Render using bitmap font directly to PNG buffer (no SVG, no host fonts)
+  const imageBuffer = await renderBitmapToPng({
     text: escapedText,
     width,
     height,
     textColor,
     backgroundColor,
   });
-
-  // Convert SVG to PNG buffer with higher density to improve sharpness
-  const imageBuffer = await sharp(Buffer.from(svg), {
-    density: 240,
-  })
-    .png()
-    .toBuffer();
 
   return {
     buffer: imageBuffer,
