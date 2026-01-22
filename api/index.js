@@ -151,35 +151,42 @@ async function generateTextImage(args = {}) {
     textColor = args.color;
   }
 
-  const backgroundColor = "#ffffff";
+  const backgroundColor = "#f0f0f0";
 
   // Escape text for safe SVG rendering
   const escapedText = escapeSvgText(text);
 
-  // Create SVG with text centered - using larger font and explicit font rendering
+  // Create SVG with text centered - rely on built-in DejaVu/Noto fonts for Sharp
   const svg = html`
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      width="${width}"
+      height="${height}"
+      viewBox="0 0 ${width} ${height}"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <rect width="100%" height="100%" fill="${backgroundColor}" />
       <text
         x="50%"
         y="50%"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="200"
-        font-weight="bold"
+        font-family="DejaVu Sans, Noto Sans, Arial, sans-serif"
+        font-size="220"
+        font-weight="700"
         fill="${textColor}"
         text-anchor="middle"
         dominant-baseline="middle"
-        style="font-family: Arial, Helvetica, sans-serif;"
+        style="paint-order: stroke fill; text-rendering: optimizeLegibility;"
       >
         ${escapedText}
       </text>
     </svg>
   `;
 
-  // Convert SVG to PNG buffer with explicit font rendering
+  // Convert SVG to PNG buffer with higher density to improve sharpness
   const imageBuffer = await sharp(Buffer.from(svg), {
-    density: 300
-  }).png().toBuffer();
+    density: 240,
+  })
+    .png()
+    .toBuffer();
 
   return {
     buffer: imageBuffer,
