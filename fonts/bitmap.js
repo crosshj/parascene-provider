@@ -105,7 +105,7 @@ export async function renderBitmapToPng({
   height,
   textColor,
   backgroundColor,
-  pixelSize = 14,
+  pixelSize = 10,
   letterSpacing = 1,
 }) {
   const bg = hexToRgba(backgroundColor);
