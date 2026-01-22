@@ -156,27 +156,30 @@ async function generateTextImage(args = {}) {
   // Escape text for safe SVG rendering
   const escapedText = escapeSvgText(text);
 
-  // Create SVG with text centered
+  // Create SVG with text centered - using larger font and explicit font rendering
   const svg = html`
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="${backgroundColor}" />
       <text
         x="50%"
         y="50%"
-        font-family="Arial, sans-serif"
-        font-size="72"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="200"
         font-weight="bold"
         fill="${textColor}"
         text-anchor="middle"
         dominant-baseline="middle"
+        style="font-family: Arial, Helvetica, sans-serif;"
       >
         ${escapedText}
       </text>
     </svg>
   `;
 
-  // Convert SVG to PNG buffer
-  const imageBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
+  // Convert SVG to PNG buffer with explicit font rendering
+  const imageBuffer = await sharp(Buffer.from(svg), {
+    density: 300
+  }).png().toBuffer();
 
   return {
     buffer: imageBuffer,
