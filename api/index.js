@@ -1,5 +1,6 @@
 import { generateGradientCircle } from '../generators/gradientCircle.js';
 import { generateTextImage } from '../generators/textImage.js';
+import { generatePoeticImage } from '../generators/zydeco.js';
 
 const generationMethods = {
 	gradientCircle: {
@@ -27,11 +28,25 @@ const generationMethods = {
 			},
 		},
 	},
+	poeticImage: {
+		name: 'Poetic Image (Zydeco)',
+		description:
+			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
+		credits: 5,
+		fields: {
+			style: {
+				label: 'Style',
+				type: 'text',
+				required: false,
+			},
+		},
+	},
 };
 
 const methodHandlers = {
 	gradientCircle: generateGradientCircle,
 	centeredTextOnWhite: generateTextImage,
+	poeticImage: generatePoeticImage,
 };
 
 export default async function handler(req, res) {

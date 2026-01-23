@@ -90,3 +90,19 @@ export async function poeticImage({ key, style }) {
 
 	return { ok: true, buffer: annotated.buffer, description: poemPlusAI.text };
 }
+
+export async function generatePoeticImage(args = {}) {
+	const key = process.env.OPENAI_API_KEY;
+	const res = await poeticImage({ key, style: args.style });
+	if (!res || res.ok === false) {
+		const message = res?.message || 'poeticImage failed';
+		throw new Error(message);
+	}
+	return {
+		buffer: res.buffer,
+		description: res.description,
+		color: '#000000',
+		width: 1024,
+		height: 1024,
+	};
+}
