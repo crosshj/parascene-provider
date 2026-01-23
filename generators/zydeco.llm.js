@@ -1,4 +1,4 @@
-import { rewritePoemPrompt } from './zydeco.prompt';
+import { rewritePoemPrompt } from './zydeco.prompt.js';
 
 export async function testOpenAIKey(key) {
 	if (!key) return { ok: false, message: 'No key provided' };
