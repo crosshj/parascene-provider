@@ -3,11 +3,24 @@ import { generateTextImage } from '../generators/textImage.js';
 import { generatePoeticImage } from '../generators/zydeco.js';
 
 const generationMethods = {
+	poeticImage: {
+		name: 'Poetic Image (Zydeco)',
+		description:
+			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
+		credits: 5,
+		fields: {
+			style: {
+				label: 'Style',
+				type: 'text',
+				required: false,
+			},
+		},
+	},
 	gradientCircle: {
 		name: 'Gradient Circle',
 		description:
 			'Generates a 1024x1024 image with a gradient background using random colors at each corner and a random colored circle',
-		credits: 2,
+		credits: 0.5,
 		fields: {},
 	},
 	centeredTextOnWhite: {
@@ -24,19 +37,6 @@ const generationMethods = {
 			color: {
 				label: 'Text Color',
 				type: 'color',
-				required: false,
-			},
-		},
-	},
-	poeticImage: {
-		name: 'Poetic Image (Zydeco)',
-		description:
-			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
-		credits: 5,
-		fields: {
-			style: {
-				label: 'Style',
-				type: 'text',
 				required: false,
 			},
 		},
