@@ -7,7 +7,7 @@ const generationMethods = {
 		name: 'Poetic Image (Zydeco)',
 		description:
 			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
-		credits: 5,
+		credits: 2,
 		fields: {
 			style: {
 				label: 'Style',
@@ -27,7 +27,7 @@ const generationMethods = {
 		name: 'Centered Text on White',
 		description:
 			'Generates a 1024x1024 image with centered text rendered on a white background',
-		credits: 0.5,
+		credits: 0.25,
 		fields: {
 			text: {
 				label: 'Text',
