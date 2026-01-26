@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { generateGradientCircle } from '../generators/gradientCircle.js';
 import { generateTextImage } from '../generators/textImage.js';
 import { generatePoeticImage } from '../generators/zydeco.js';
@@ -5,6 +6,15 @@ import {
 	generateFluxImage,
 	generatePoeticImageFlux,
 } from '../generators/flux.js';
+
+function validateAuth(req) {
+	const authHeader = req.headers.authorization;
+	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return false;
+	}
+	const token = authHeader.slice(7);
+	return token === process.env.PARASCENE_API_KEY;
+}
 
 const generationMethods = {
 	fluxImage: {
@@ -92,6 +102,13 @@ export default async function handler(req, res) {
 	}
 
 	if (req.method === 'POST') {
+		if (!validateAuth(req)) {
+			return res.status(401).json({
+				error: 'Unauthorized',
+				message: 'Valid API key required. Use Authorization: Bearer <key>',
+			});
+		}
+
 		try {
 			let body;
 			try {

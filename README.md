@@ -102,12 +102,14 @@ Centered Text on White (with required text and optional color):
 # Generate gradient circle
 curl -X POST https://your-deployment.vercel.app/api \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"method": "gradientCircle", "args": {}}' \
   --output gradient.png
 
 # Generate centered text image
 curl -X POST https://your-deployment.vercel.app/api \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"method": "centeredTextOnWhite", "args": {"text": "Hello World", "color": "#ff0000"}}' \
   --output text.png
 ```
@@ -128,18 +130,20 @@ npm run dev
 
 3. Test endpoints:
 ```bash
-# Check capabilities
+# Check capabilities (no auth required)
 curl http://localhost:3000/api
 
-# Generate gradient circle
+# Generate gradient circle (auth required)
 curl -X POST http://localhost:3000/api \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"method": "gradientCircle", "args": {}}' \
   --output gradient.png
 
-# Generate centered text image
+# Generate centered text image (auth required)
 curl -X POST http://localhost:3000/api \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"method": "centeredTextOnWhite", "args": {"text": "Hello World"}}' \
   --output text.png
 ```
@@ -162,7 +166,13 @@ vercel
 
 ### Environment Variables
 
-No environment variables are required for the basic implementation.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PARASCENE_API_KEY` | Yes | API key for authorizing POST requests |
+| `OPENAI_API_KEY` | For AI methods | OpenAI API key for poem generation and Dall-E (`poeticImage`, `fluxPoeticImage`) |
+| `FLUX_API_KEY` | For Flux methods | Black Forest Labs API key for Flux image generation (`fluxImage`, `fluxPoeticImage`) |
+
+Set in Vercel dashboard or copy `.env.example` to `.env` for local development.
 
 ## Dependencies
 
