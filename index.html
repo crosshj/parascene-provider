@@ -21,20 +21,311 @@
 					sans-serif;
 				background: #f7f7f9;
 				color: #1f2933;
-				display: grid;
-				place-items: center;
-				min-height: 100vh;
 				padding: 24px;
+				max-width: 900px;
+				margin: 0 auto;
 			}
-			.watermark {
-				opacity: 0.1;
-				font-size: 3rem;
-				font-weight: 600;
-				letter-spacing: 0.02em;
+			h1 {
+				margin-bottom: 8px;
+			}
+			.subtitle {
+				color: #616e7c;
+				margin-bottom: 32px;
+			}
+			.section {
+				background: white;
+				border-radius: 8px;
+				padding: 24px;
+				margin-bottom: 24px;
+				box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+			}
+			.form-group {
+				margin-bottom: 16px;
+			}
+			label {
+				display: block;
+				font-weight: 500;
+				margin-bottom: 6px;
+			}
+			input[type="text"],
+			input[type="password"],
+			select,
+			textarea {
+				width: 100%;
+				padding: 8px 12px;
+				border: 1px solid #cbd2d9;
+				border-radius: 4px;
+				font-family: inherit;
+				font-size: 14px;
+				box-sizing: border-box;
+			}
+			textarea {
+				font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+				min-height: 80px;
+			}
+			button {
+				background: #3b82f6;
+				color: white;
+				border: none;
+				padding: 10px 20px;
+				border-radius: 4px;
+				font-weight: 500;
+				cursor: pointer;
+				font-size: 14px;
+			}
+			button:hover {
+				background: #2563eb;
+			}
+			button:disabled {
+				background: #cbd2d9;
+				cursor: not-allowed;
+			}
+			.error {
+				color: #dc2626;
+				background: #fee2e2;
+				padding: 12px;
+				border-radius: 4px;
+				margin-top: 12px;
+			}
+			.success {
+				color: #059669;
+				background: #d1fae5;
+				padding: 12px;
+				border-radius: 4px;
+				margin-top: 12px;
+			}
+			pre {
+				background: #f1f5f9;
+				padding: 12px;
+				border-radius: 4px;
+				overflow-x: auto;
+				font-size: 13px;
+			}
+			.method-option {
+				padding: 8px;
+				border: 1px solid #cbd2d9;
+				border-radius: 4px;
+				margin-bottom: 8px;
+			}
+			.method-option h4 {
+				margin: 0 0 4px 0;
+			}
+			.method-option p {
+				margin: 0;
+				font-size: 13px;
+				color: #616e7c;
+			}
+			#imageResult {
+				max-width: 100%;
+				border-radius: 4px;
+				margin-top: 16px;
+			}
+			.field-group {
+				margin-left: 16px;
+				padding: 12px;
+				background: #f8fafc;
+				border-radius: 4px;
+				margin-top: 12px;
 			}
 		</style>
 	</head>
 	<body>
-		<div class="watermark">provider</div>
+		<h1>Parascene Provider Test</h1>
+		<p class="subtitle">Test the API endpoints with authentication</p>
+
+		<!-- Auth Section -->
+		<div class="section">
+			<h2>1. Authentication & Capabilities</h2>
+			<div class="form-group">
+				<label for="authToken">API Token</label>
+				<input type="password" id="authToken" placeholder="Enter your Bearer token" />
+			</div>
+			<button onclick="fetchCapabilities()">Fetch Capabilities (GET)</button>
+			<div id="getResult"></div>
+		</div>
+
+		<!-- Generation Section -->
+		<div class="section" id="generationSection" style="display: none;">
+			<h2>2. Generate Image</h2>
+			<div class="form-group">
+				<label for="method">Generation Method</label>
+				<select id="method" onchange="updateMethodFields()">
+					<option value="">Select a method...</option>
+				</select>
+			</div>
+			<div id="methodFields"></div>
+			<button onclick="generateImage()" id="generateBtn" disabled>Generate Image (POST)</button>
+			<div id="postResult"></div>
+		</div>
+
+		<script>
+			let capabilities = null;
+
+			async function fetchCapabilities() {
+				const token = document.getElementById('authToken').value;
+				const resultDiv = document.getElementById('getResult');
+				
+				if (!token) {
+					resultDiv.innerHTML = '<div class="error">Please enter an API token</div>';
+					return;
+				}
+
+				resultDiv.innerHTML = '<p>Fetching...</p>';
+
+				try {
+					const response = await fetch('/api', {
+						method: 'GET',
+						headers: {
+							'Authorization': `Bearer ${token}`
+						}
+					});
+
+					const data = await response.json();
+
+					if (!response.ok) {
+						resultDiv.innerHTML = `<div class="error">Error ${response.status}: ${data.message || data.error}</div>`;
+						return;
+					}
+
+					capabilities = data;
+					resultDiv.innerHTML = `<div class="success">✓ Authenticated successfully</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+					
+					// Populate method dropdown
+					const methodSelect = document.getElementById('method');
+					methodSelect.innerHTML = '<option value="">Select a method...</option>';
+					for (const [key, method] of Object.entries(data.methods)) {
+						const option = document.createElement('option');
+						option.value = key;
+						option.textContent = `${method.name} (${method.credits} credits)`;
+						methodSelect.appendChild(option);
+					}
+
+					// Show generation section
+					document.getElementById('generationSection').style.display = 'block';
+				} catch (error) {
+					resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+				}
+			}
+
+			function updateMethodFields() {
+				const methodKey = document.getElementById('method').value;
+				const fieldsDiv = document.getElementById('methodFields');
+				const generateBtn = document.getElementById('generateBtn');
+
+				if (!methodKey || !capabilities) {
+					fieldsDiv.innerHTML = '';
+					generateBtn.disabled = true;
+					return;
+				}
+
+				const method = capabilities.methods[methodKey];
+				fieldsDiv.innerHTML = '';
+
+				if (method.description) {
+					const desc = document.createElement('p');
+					desc.style.color = '#616e7c';
+					desc.style.marginBottom = '16px';
+					desc.textContent = method.description;
+					fieldsDiv.appendChild(desc);
+				}
+
+				const fields = method.fields || {};
+				if (Object.keys(fields).length > 0) {
+					const fieldGroup = document.createElement('div');
+					fieldGroup.className = 'field-group';
+					
+					for (const [fieldName, fieldDef] of Object.entries(fields)) {
+						const formGroup = document.createElement('div');
+						formGroup.className = 'form-group';
+						formGroup.style.marginBottom = '12px';
+
+						const label = document.createElement('label');
+						label.textContent = `${fieldDef.label}${fieldDef.required ? ' *' : ''}`;
+						formGroup.appendChild(label);
+
+						let input;
+						if (fieldDef.type === 'text') {
+							input = document.createElement('textarea');
+							input.rows = 3;
+						} else if (fieldDef.type === 'color') {
+							input = document.createElement('input');
+							input.type = 'color';
+						} else {
+							input = document.createElement('input');
+							input.type = 'text';
+						}
+						input.id = `field_${fieldName}`;
+						input.placeholder = fieldDef.required ? 'Required' : 'Optional';
+						formGroup.appendChild(input);
+
+						fieldGroup.appendChild(formGroup);
+					}
+					
+					fieldsDiv.appendChild(fieldGroup);
+				}
+
+				generateBtn.disabled = false;
+			}
+
+			async function generateImage() {
+				const token = document.getElementById('authToken').value;
+				const methodKey = document.getElementById('method').value;
+				const resultDiv = document.getElementById('postResult');
+
+				if (!token || !methodKey) {
+					resultDiv.innerHTML = '<div class="error">Please select a method</div>';
+					return;
+				}
+
+				const method = capabilities.methods[methodKey];
+				const args = {};
+
+				// Collect field values
+				for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
+					const input = document.getElementById(`field_${fieldName}`);
+					if (input && input.value) {
+						args[fieldName] = input.value;
+					}
+				}
+
+				resultDiv.innerHTML = '<p>Generating image...</p>';
+
+				try {
+					const response = await fetch('/api', {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${token}`,
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							method: methodKey,
+							args: args
+						})
+					});
+
+					if (!response.ok) {
+						const data = await response.json();
+						resultDiv.innerHTML = `<div class="error">Error ${response.status}: ${data.message || data.error}</div>`;
+						return;
+					}
+
+					// Display the image
+					const blob = await response.blob();
+					const imageUrl = URL.createObjectURL(blob);
+					
+					const width = response.headers.get('X-Image-Width');
+					const height = response.headers.get('X-Image-Height');
+					const color = response.headers.get('X-Image-Color');
+
+					resultDiv.innerHTML = `
+						<div class="success">✓ Image generated successfully</div>
+						<p>Dimensions: ${width}x${height}${color ? ` | Color: ${color}` : ''}</p>
+						<img id="imageResult" src="${imageUrl}" alt="Generated image" />
+					`;
+				} catch (error) {
+					resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+				}
+			}
+		</script>
 	</body>
 </html>
