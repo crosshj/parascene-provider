@@ -22,7 +22,7 @@ function normalizeForJimp(s) {
 		.replace(/\u00A0/g, ' '); // nbsp -> space
 }
 
-async function annotatePoemWithJimp(imageBuffer, poemText) {
+export async function annotatePoemWithJimp(imageBuffer, poemText) {
 	try {
 		const image = await Jimp.read(imageBuffer);
 		const width = image.getWidth();

@@ -1,8 +1,38 @@
 import { generateGradientCircle } from '../generators/gradientCircle.js';
 import { generateTextImage } from '../generators/textImage.js';
 import { generatePoeticImage } from '../generators/zydeco.js';
+import {
+	generateFluxImage,
+	generatePoeticImageFlux,
+} from '../generators/flux.js';
 
 const generationMethods = {
+	fluxImage: {
+		name: 'Flux 2 (Black Forest Labs)',
+		description:
+			'Calls the Black Forest Labs Flux endpoint to generate a 1024x1024 image from a prompt.',
+		credits: 2,
+		fields: {
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+		},
+	},
+	fluxPoeticImage: {
+		name: 'Flux Poetic Image (Zydeco → Flux)',
+		description:
+			'Generates a zydeco poem, builds an image prompt, renders with Flux, then overlays the poem at the bottom.',
+		credits: 2,
+		fields: {
+			style: {
+				label: 'Style',
+				type: 'text',
+				required: false,
+			},
+		},
+	},
 	poeticImage: {
 		name: 'Poetic Image (Zydeco)',
 		description:
@@ -47,6 +77,8 @@ const methodHandlers = {
 	gradientCircle: generateGradientCircle,
 	centeredTextOnWhite: generateTextImage,
 	poeticImage: generatePoeticImage,
+	fluxImage: generateFluxImage,
+	fluxPoeticImage: generatePoeticImageFlux,
 };
 
 export default async function handler(req, res) {

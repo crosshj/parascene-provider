@@ -4,6 +4,10 @@ import { fileURLToPath } from 'url';
 
 import { generateGradientCircle } from '../generators/gradientCircle.js';
 import { generateTextImage } from '../generators/textImage.js';
+import {
+	generateFluxImage,
+	generatePoeticImageFlux,
+} from '../generators/flux.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +31,8 @@ describe('generators', () => {
 	beforeAll(async () => {
 		await fs.mkdir(outputDir, { recursive: true });
 	});
+
+	jest.setTimeout(60000);
 
 	it('creates a gradient circle png', async () => {
 		const result = await generateGradientCircle();
@@ -53,5 +59,29 @@ describe('generators', () => {
 			result.buffer
 		);
 		expect(saved).toContain('text-image-custom-color.png');
+	});
+
+	it.only('calls Flux generator to create an image', async () => {
+		const result = await generateFluxImage({
+			prompt: `haunted tropical reggae voodoo game level`.trim(),
+		});
+		expectBufferResult(result);
+
+		console.log(result);
+
+		const saved = await writeImage('flux-image.png', result.buffer);
+		expect(saved).toContain('flux-image.png');
+	});
+
+	it('calls Flux Zydeco generator to create an image', async () => {
+		const result = await generatePoeticImageFlux({
+			style: 'dark fantasy',
+		});
+		expectBufferResult(result);
+
+		// console.log(result);
+
+		const saved = await writeImage('flux-image.png', result.buffer);
+		expect(saved).toContain('flux-image.png');
 	});
 });
