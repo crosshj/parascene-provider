@@ -8,10 +8,10 @@ import {
 
 const generationMethods = {
 	fluxImage: {
-		name: 'Flux 2 (Black Forest Labs)',
+		name: 'Flux 2',
 		description:
 			'Calls the Black Forest Labs Flux endpoint to generate a 1024x1024 image from a prompt.',
-		credits: 2,
+		credits: 5,
 		fields: {
 			prompt: {
 				label: 'Prompt',
@@ -21,10 +21,10 @@ const generationMethods = {
 		},
 	},
 	fluxPoeticImage: {
-		name: 'Flux Poetic Image (Zydeco → Flux)',
+		name: 'Poetic Image (Zydeco + Flux)',
 		description:
 			'Generates a zydeco poem, builds an image prompt, renders with Flux, then overlays the poem at the bottom.',
-		credits: 2,
+		credits: 5,
 		fields: {
 			style: {
 				label: 'Style',
