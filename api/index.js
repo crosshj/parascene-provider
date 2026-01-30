@@ -28,14 +28,15 @@ const generationMethods = {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
+
 			},
 		},
 	},
 	fluxImageEdit: {
 		name: 'Flux 2 Image Edit',
 		description:
-			'Downloads an input image from image_url and sends it to Flux along with your prompt to perform an edit.',
-		credits: 5,
+			'Downloads an input image from Image URL and sends it to Flux along with your prompt to perform an edit.',
+		credits: 8,
 		fields: {
 			image_url: {
 				label: 'Image URL',

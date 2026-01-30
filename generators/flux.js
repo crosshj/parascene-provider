@@ -1,6 +1,7 @@
 import { getPoem, annotatePoemWithJimp } from './zydeco.js';
 import { rewritePoemWithOpenAI } from './zydeco.llm.js';
 import sharp from 'sharp';
+import { log } from './utils.js';
 
 const { FLUX_API_KEY } = process.env;
 const url = 'https://api.bfl.ai/v1/flux-2-pro';
@@ -9,69 +10,100 @@ async function fluxRequest(payload = {}) {
 	if (!FLUX_API_KEY) throw new Error('FLUX_API_KEY missing');
 
 	const prompt = payload?.prompt;
-	if (!prompt || typeof prompt !== 'string' || !prompt.trim())
+	if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
 		throw new Error('A prompt string is required');
+	}
 
 	const startTime = Date.now();
+	let rest = null;
 
-	const post = await fetch(url, {
-		method: 'POST',
-		headers: {
-			'content-type': 'application/json',
-			'x-key': FLUX_API_KEY,
-		},
-		body: JSON.stringify({
-			...payload,
-			prompt: prompt.trim(),
-		}),
-	});
-	if (!post.ok) throw new Error(await post.text());
-	const { polling_url, ...rest } = await post.json();
-
-	let pollCount = 0;
-
-	for (; ;) {
-		pollCount++;
-		const poll = await fetch(polling_url, {
+	try {
+		const post = await fetch(url, {
+			method: 'POST',
 			headers: {
+				'content-type': 'application/json',
 				'x-key': FLUX_API_KEY,
 			},
+			body: JSON.stringify({
+				...payload,
+				prompt: prompt.trim(),
+			}),
 		});
-		if (!poll.ok) throw new Error(await poll.text());
-		const j = await poll.json();
+		if (!post.ok) throw new Error(await post.text());
+		const { polling_url, ...r } = await post.json();
+		rest = r;
 
-		const { status, ...jRest } = j;
+		log('Flux request created', {
+			id: rest.id,
+			cost: rest.cost,
+			input_mp: rest.input_mp,
+			output_mp: rest.output_mp,
+		});
 
-		if (status === 'Ready') {
-			const img = await fetch(j.result.sample);
-			if (!img.ok) throw new Error(await img.text());
-			const buffer = Buffer.from(await img.arrayBuffer());
-			let meta = null;
-			try {
-				meta = await sharp(buffer).metadata();
-			} catch {
-				// ignore metadata failures
+		let pollCount = 0;
+
+		for (; ;) {
+			pollCount++;
+			const poll = await fetch(polling_url, {
+				headers: {
+					'x-key': FLUX_API_KEY,
+				},
+			});
+			if (!poll.ok) throw new Error(await poll.text());
+			const j = await poll.json();
+
+			const { status, ...jRest } = j;
+
+			if (status === 'Ready') {
+				const img = await fetch(j.result.sample);
+				if (!img.ok) throw new Error(await img.text());
+				const buffer = Buffer.from(await img.arrayBuffer());
+				let meta = null;
+				try {
+					meta = await sharp(buffer).metadata();
+				} catch {
+					// ignore metadata failures
+				}
+				const duration = Date.now() - startTime;
+
+				log('Flux request ready', {
+					id: rest.id,
+					cost: rest.cost,
+					input_mp: rest.input_mp,
+					output_mp: rest.output_mp,
+					duration_ms: duration,
+					pollCount,
+				});
+
+				return {
+					buffer,
+					width: typeof meta?.width === 'number' ? meta.width : undefined,
+					height: typeof meta?.height === 'number' ? meta.height : undefined,
+					format: meta?.format,
+					mime: img.headers.get('content-type') || undefined,
+					duration,
+					pollCount,
+					final: jRest,
+					...rest,
+				};
 			}
-			const duration = Date.now() - startTime;
+			// Per BFL get_result docs: only poll while Pending.
+			if (status !== 'Pending') {
+				log('Flux non-pending status', { id: rest?.id, status, response: j });
+				throw new Error(
+					`Flux request did not complete: status=${status} id=${rest?.id || 'unknown'}`
+				);
+			}
 
-			return {
-				buffer,
-				width: typeof meta?.width === 'number' ? meta.width : undefined,
-				height: typeof meta?.height === 'number' ? meta.height : undefined,
-				format: meta?.format,
-				mime: img.headers.get('content-type') || undefined,
-				duration,
-				pollCount,
-				final: jRest,
-				...rest,
-			};
+			log('Polling...');
+			await new Promise((r) => setTimeout(r, 1000));
 		}
-		if (status === 'Error' || status === 'Failed') {
-			throw new Error(JSON.stringify(j));
-		}
-
-		console.log('Polling...');
-		await new Promise((r) => setTimeout(r, 400));
+	} catch (err) {
+		log('Flux request error', {
+			id: rest?.id,
+			message: err?.message || String(err),
+		});
+		throw err;
 	}
 }
 
