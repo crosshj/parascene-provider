@@ -22,13 +22,13 @@ const generationMethods = {
 		name: 'Flux 2',
 		description:
 			'Calls the Black Forest Labs Flux endpoint to generate a 1024x1024 image from a prompt.',
+		intent: 'image_generate',
 		credits: 5,
 		fields: {
 			prompt: {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
-
 			},
 		},
 	},
@@ -36,6 +36,7 @@ const generationMethods = {
 		name: 'Flux 2 Image Edit',
 		description:
 			'Downloads an input image from Image URL and sends it to Flux along with your prompt to perform an edit.',
+		intent: 'image_edit',
 		credits: 8,
 		fields: {
 			image_url: {
@@ -54,6 +55,7 @@ const generationMethods = {
 		name: 'Poetic Image (Zydeco + Flux)',
 		description:
 			'Generates a zydeco poem, builds an image prompt, renders with Flux, then overlays the poem at the bottom.',
+		intent: 'image_generate',
 		credits: 5,
 		fields: {
 			style: {
@@ -67,6 +69,7 @@ const generationMethods = {
 		name: 'Poetic Image (Zydeco)',
 		description:
 			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
+		intent: 'image_generate',
 		credits: 2,
 		fields: {
 			style: {
@@ -80,13 +83,15 @@ const generationMethods = {
 		name: 'Gradient Circle',
 		description:
 			'Generates a 1024x1024 image with a gradient background using random colors at each corner and a random colored circle',
-		credits: 0.5,
+		intent: 'image_generate',
+		credits: 0.25,
 		fields: {},
 	},
 	centeredTextOnWhite: {
 		name: 'Centered Text on White',
 		description:
 			'Generates a 1024x1024 image with centered text rendered on a white background',
+		intent: 'image_generate',
 		credits: 0.25,
 		fields: {
 			text: {
