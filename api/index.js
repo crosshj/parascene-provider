@@ -36,7 +36,7 @@ const generationMethods = {
 		name: 'Flux 2 Image Edit',
 		description:
 			'Downloads an input image from Image URL and sends it to Flux along with your prompt to perform an edit.',
-		intent: 'image_edit',
+		intent: 'image_mutate',
 		credits: 8,
 		fields: {
 			image_url: {
