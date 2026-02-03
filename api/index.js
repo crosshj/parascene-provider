@@ -7,6 +7,7 @@ import {
 	generatePoeticImageFlux,
 	fluxImageEdit,
 } from '../generators/flux.js';
+import { uploadImage } from '../generators/imageEdit.js';
 
 function validateAuth(req) {
 	const authHeader = req.headers.authorization;
@@ -47,6 +48,20 @@ const generationMethods = {
 			prompt: {
 				label: 'Prompt',
 				type: 'text',
+				required: true,
+			},
+		},
+	},
+	uploadImage: {
+		name: 'Upload Image From URL',
+		description:
+			'Resizes an image from a URL to 1024x1024 (cover + entropy crop).',
+		intent: 'image_mutate',
+		credits: 0,
+		fields: {
+			image_url: {
+				label: 'Image URL',
+				type: 'image_url',
 				required: true,
 			},
 		},
@@ -115,6 +130,7 @@ const methodHandlers = {
 	fluxImage: generateFluxImage,
 	fluxPoeticImage: generatePoeticImageFlux,
 	fluxImageEdit: fluxImageEdit,
+	uploadImage,
 };
 
 export default async function handler(req, res) {
