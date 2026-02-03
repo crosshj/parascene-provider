@@ -56,7 +56,7 @@ const generationMethods = {
 		name: 'Upload Image From URL',
 		description:
 			'Resizes an image from a URL to 1024x1024 (cover + entropy crop).',
-		intent: 'image_mutate',
+		intent: 'image_generate',
 		credits: 0,
 		fields: {
 			image_url: {
