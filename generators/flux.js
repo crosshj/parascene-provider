@@ -167,8 +167,6 @@ export async function generateFluxImage(args = {}) {
 	const result = await flux(args.prompt || args.text);
 	return {
 		...result,
-		width: 1024,
-		height: 1024,
 		prompt: (args.prompt || args.text || '').trim(),
 		color: '#000000',
 		width: 1024,
