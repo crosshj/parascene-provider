@@ -1,5 +1,63 @@
 let capabilities = null;
 
+const CONTROLS_STORAGE_KEY = 'parascene_generation_controls';
+let _currentMethodKey = null;
+
+function loadGenerationControls() {
+	try {
+		const raw = localStorage.getItem(CONTROLS_STORAGE_KEY);
+		if (!raw) return {};
+		const data = JSON.parse(raw);
+		return data && typeof data === 'object' ? data : {};
+	} catch {
+		return {};
+	}
+}
+
+function getCurrentFieldValues(methodKeyToRead) {
+	if (!methodKeyToRead || !capabilities?.methods?.[methodKeyToRead]) return {};
+	const method = capabilities.methods[methodKeyToRead];
+	const fields = method.fields || {};
+	const values = {};
+	for (const fieldName of Object.keys(fields)) {
+		const input =
+			document.getElementById(`field_${fieldName}`) ||
+			document.querySelector(`[name="${fieldName}"]`);
+		if (!input) continue;
+		const fieldDef = fields[fieldName];
+		if (fieldDef?.type === 'boolean') {
+			values[fieldName] = input.checked;
+		} else if ('value' in input) {
+			values[fieldName] = input.value;
+		}
+	}
+	return values;
+}
+
+function saveGenerationControls() {
+	const methodSelect = document.getElementById('method');
+	const methodKey = methodSelect?.value;
+	if (!methodKey || !capabilities?.methods?.[methodKey]) return;
+
+	const state = loadGenerationControls();
+	state.selectedMethod = methodKey;
+	state.methods = state.methods || {};
+	state.methods[methodKey] = getCurrentFieldValues(methodKey);
+	try {
+		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
+	} catch {}
+}
+
+function saveCurrentMethodStateToStorage() {
+	if (!_currentMethodKey) return;
+	const state = loadGenerationControls();
+	state.methods = state.methods || {};
+	state.methods[_currentMethodKey] = getCurrentFieldValues(_currentMethodKey);
+	try {
+		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
+	} catch {}
+}
+
 // Load saved token on page load
 window.addEventListener('DOMContentLoaded', () => {
 	const savedToken = localStorage.getItem('parascene_api_token');
@@ -65,9 +123,13 @@ async function fetchCapabilities() {
 			methodSelect.appendChild(option);
 		}
 
-		// Select first method by default
+		// Restore saved method if valid, else first
+		const saved = loadGenerationControls();
 		if (methodKeys.length > 0) {
-			methodSelect.value = methodKeys[0];
+			const preferred = saved.selectedMethod && methodKeys.includes(saved.selectedMethod)
+				? saved.selectedMethod
+				: methodKeys[0];
+			methodSelect.value = preferred;
 			updateMethodFields();
 		}
 
@@ -79,7 +141,8 @@ async function fetchCapabilities() {
 }
 
 function updateMethodFields() {
-	const methodKey = document.getElementById('method').value;
+	const methodSelect = document.getElementById('method');
+	const methodKey = methodSelect?.value;
 	const fieldsDiv = document.getElementById('methodFields');
 	const generateBtn = document.getElementById('generateBtn');
 
@@ -87,6 +150,11 @@ function updateMethodFields() {
 		fieldsDiv.innerHTML = '';
 		generateBtn.disabled = true;
 		return;
+	}
+
+	// Save previous method's field values before rebuilding (so switching method doesn't lose the old method's values)
+	if (_currentMethodKey) {
+		saveCurrentMethodStateToStorage();
 	}
 
 	const method = capabilities.methods[methodKey];
@@ -142,15 +210,32 @@ function updateMethodFields() {
 				if (fieldDef.default != null && fieldDef.default !== '') {
 					input.value = String(fieldDef.default);
 				}
+			} else if (fieldDef.type === 'boolean') {
+				input = document.createElement('input');
+				input.type = 'checkbox';
+				input.checked = fieldDef.default === true || fieldDef.default === 'true';
 			} else {
 				input = document.createElement('input');
 				input.type = 'text';
 			}
 			input.id = `field_${fieldName}`;
 			input.name = fieldName;
-			if (fieldDef.type !== 'select') {
+			if (fieldDef.type !== 'select' && fieldDef.type !== 'boolean') {
 				input.placeholder = fieldDef.required ? 'Required' : 'Optional';
 			}
+			// Restore saved value for this method
+			const saved = loadGenerationControls();
+			const savedForMethod = saved.methods?.[methodKey];
+			if (savedForMethod && fieldName in savedForMethod) {
+				if (fieldDef.type === 'boolean') {
+					const v = savedForMethod[fieldName];
+					input.checked = v === true || v === 'true';
+				} else if (savedForMethod[fieldName] !== '') {
+					input.value = savedForMethod[fieldName];
+				}
+			}
+			input.addEventListener('change', saveGenerationControls);
+			input.addEventListener('input', saveGenerationControls);
 			formGroup.appendChild(input);
 
 			// Nice UX for image_url fields: show a quick preview.
@@ -180,16 +265,20 @@ function updateMethodFields() {
 		fieldsDiv.appendChild(fieldGroup);
 	}
 
+	_currentMethodKey = methodKey;
 	generateBtn.disabled = false;
 }
 
 async function generateImage() {
 	const token = document.getElementById('authToken').value;
 	const methodKey = document.getElementById('method').value;
-	const resultDiv = document.getElementById('postResult');
 
 	if (!token || !methodKey) {
-		resultDiv.innerHTML = '<div class="error">Please select a method</div>';
+		const imagePanel = document.getElementById('generationImageColumn');
+		if (imagePanel) {
+			imagePanel.classList.remove('has-content');
+			imagePanel.innerHTML = '<div class="error">Please select a method</div>';
+		}
 		return;
 	}
 
@@ -203,15 +292,24 @@ async function generateImage() {
 			document.getElementById(`field_${fieldName}`) ||
 			(fieldsContainer && fieldsContainer.querySelector(`[name="${fieldName}"]`));
 		if (!input) continue;
-		// Selects always have a value; send it (or default). Other fields: send when non-empty.
-		if (fieldDef.type === 'select') {
+		if (fieldDef.type === 'boolean') {
+			args[fieldName] = input.checked;
+		} else if (fieldDef.type === 'select') {
 			args[fieldName] = input.value ? String(input.value) : String(fieldDef.default ?? '');
 		} else if (input.value) {
 			args[fieldName] = input.value;
 		}
 	}
 
-	resultDiv.innerHTML = '<p>Generating image...</p>';
+	const imagePanel = document.getElementById('generationImageColumn');
+	const generateBtn = document.getElementById('generateBtn');
+	if (generateBtn) generateBtn.disabled = true;
+
+	// Left panel: loading
+	if (imagePanel) {
+		imagePanel.classList.remove('has-content');
+		imagePanel.innerHTML = '<div class="image-loading">Generating image…</div>';
+	}
 
 	try {
 		const response = await fetch('/api', {
@@ -228,25 +326,27 @@ async function generateImage() {
 
 		if (!response.ok) {
 			const data = await response.json();
-			resultDiv.innerHTML = `<div class="error">Error ${response.status}: ${data.message || data.error}</div>`;
+			if (imagePanel) {
+				imagePanel.classList.remove('has-content');
+				imagePanel.innerHTML = `<div class="error">Error ${response.status}: ${data.message || data.error}</div>`;
+			}
 			return;
 		}
 
-		// Display the image
 		const blob = await response.blob();
 		const imageUrl = URL.createObjectURL(blob);
 
-		const width = response.headers.get('X-Image-Width');
-		const height = response.headers.get('X-Image-Height');
-		const color = response.headers.get('X-Image-Color');
-
-		resultDiv.innerHTML = `
-			<div class="success">✓ Image generated successfully</div>
-			<p>Dimensions: ${width}x${height}${color ? ` | Color: ${color}` : ''}</p>
-			<img id="imageResult" src="${imageUrl}" alt="Generated image" />
-		`;
+		if (imagePanel) {
+			imagePanel.classList.add('has-content');
+			imagePanel.innerHTML = `<img id="imageResult" src="${imageUrl}" alt="Generated image" />`;
+		}
 	} catch (error) {
-		resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+		if (imagePanel) {
+			imagePanel.classList.remove('has-content');
+			imagePanel.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+		}
+	} finally {
+		if (generateBtn) generateBtn.disabled = false;
 	}
 }
 

@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { generateGradientCircle } from '../generators/gradientCircle.js';
 import { generateTextImage } from '../generators/textImage.js';
 import { generatePoeticImage } from '../generators/zydeco.js';
@@ -8,6 +7,8 @@ import {
 	fluxImageEdit,
 } from '../generators/flux.js';
 import { uploadImage } from '../generators/imageEdit.js';
+import { generateRetroDiffusionImage } from '../generators/retroDiffusion.js';
+import { generatePixelLabImage } from '../generators/pixelLab.js';
 
 function validateAuth(req) {
 	const authHeader = req.headers.authorization;
@@ -32,7 +33,7 @@ const generationMethods = {
 		description:
 			'Black Forest Labs Flux 2 Pro. Higher quality, higher credits.',
 		intent: 'image_generate',
-		credits: 5,
+		credits: 3,
 		fields: {
 			prompt: {
 				label: 'Prompt',
@@ -44,9 +45,9 @@ const generationMethods = {
 	fluxImageKlein: {
 		name: 'Flux Klein',
 		description:
-			'Black Forest Labs Flux Klein with resolution options. Lower quality, lower credits.',
+			'Black Forest Labs Flux Klein + resolution options. Lower quality, lower credits.',
 		intent: 'image_generate',
-		credits: 3.5,
+		credits: 1.5,
 		fields: {
 			prompt: {
 				label: 'Prompt',
@@ -63,11 +64,11 @@ const generationMethods = {
 		},
 	},
 	fluxImageEdit: {
-		name: 'Flux 2 Image Edit',
+		name: 'Flux 2 Pro - Image Edit',
 		description:
-			'Downloads an input image from Image URL and sends it to Flux along with your prompt to perform an edit.',
+			'Edit and image with Flux 2 Pro',
 		intent: 'image_mutate',
-		credits: 8,
+		credits: 5,
 		fields: {
 			image_url: {
 				label: 'Image URL',
@@ -79,6 +80,71 @@ const generationMethods = {
 				type: 'text',
 				required: true,
 			},
+		},
+	},
+	// MEH... PixelLab is better for now.
+	// retroDiffusionImage: {
+	// 	name: 'Retro Diffusion',
+	// 	description:
+	// 		'Generate an image with Retro Diffusion; trained on pixel art.',
+	// 	intent: 'image_generate',
+	// 	credits: 1,
+	// 	fields: {
+	// 		prompt: {
+	// 			label: 'Prompt',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 		width: {
+	// 			label: 'Width',
+	// 			type: 'number',
+	// 			required: false,
+	// 		},
+	// 		height: {
+	// 			label: 'Height',
+	// 			type: 'number',
+	// 			required: false,
+	// 		},
+	// 	},
+	// },
+	pixelLabImage: {
+		name: 'PixelLab',
+		description:
+			'Generate pixel art with PixelLab\'s Pixflux and Bitforge',
+		intent: 'image_generate',
+		credits: 0.2,
+		fields: {
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+			model: {
+				label: 'Model',
+				type: 'select',
+				required: false,
+				default: 'pixflux',
+				options: [
+					{ label: 'Pixflux', value: 'pixflux' },
+					{ label: 'Bitforge', value: 'bitforge' },
+				],
+			},
+			no_background: {
+				label: 'No Background',
+				type: 'boolean',
+				required: false,
+				default: false,
+			},
+			// width: {
+			// 	label: 'Width',
+			// 	type: 'number',
+			// 	required: false,
+			// },
+			// height: {
+			// 	label: 'Height',
+			// 	type: 'number',
+			// 	required: false,
+			// },
 		},
 	},
 	uploadImage: {
@@ -95,61 +161,61 @@ const generationMethods = {
 			},
 		},
 	},
-	fluxPoeticImage: {
-		name: 'Poetic Image (Zydeco + Flux)',
-		description:
-			'Generates a zydeco poem, builds an image prompt, renders with Flux, then overlays the poem at the bottom.',
-		intent: 'image_generate',
-		credits: 5,
-		fields: {
-			style: {
-				label: 'Style',
-				type: 'text',
-				required: false,
-			},
-		},
-	},
-	poeticImage: {
-		name: 'Poetic Image (Zydeco)',
-		description:
-			'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
-		intent: 'image_generate',
-		credits: 2,
-		fields: {
-			style: {
-				label: 'Style',
-				type: 'text',
-				required: false,
-			},
-		},
-	},
-	gradientCircle: {
-		name: 'Gradient Circle',
-		description:
-			'Generates a 1024x1024 image with a gradient background using random colors at each corner and a random colored circle',
-		intent: 'image_generate',
-		credits: 0.25,
-		fields: {},
-	},
-	centeredTextOnWhite: {
-		name: 'Centered Text on White',
-		description:
-			'Generates a 1024x1024 image with centered text rendered on a white background',
-		intent: 'image_generate',
-		credits: 0.25,
-		fields: {
-			text: {
-				label: 'Text',
-				type: 'text',
-				required: true,
-			},
-			color: {
-				label: 'Text Color',
-				type: 'color',
-				required: false,
-			},
-		},
-	},
+	// fluxPoeticImage: {
+	// 	name: 'Poetic Image (Zydeco + Flux)',
+	// 	description:
+	// 		'Generates a zydeco poem, builds an image prompt, renders with Flux, then overlays the poem at the bottom.',
+	// 	intent: 'image_generate',
+	// 	credits: 5,
+	// 	fields: {
+	// 		style: {
+	// 			label: 'Style',
+	// 			type: 'text',
+	// 			required: false,
+	// 		},
+	// 	},
+	// },
+	// poeticImage: {
+	// 	name: 'Poetic Image (Zydeco)',
+	// 	description:
+	// 		'Zydeco makes a random poem. Open AI cleans it up. Then OpenAI (Dall-E 3) generates an image from poem.',
+	// 	intent: 'image_generate',
+	// 	credits: 2,
+	// 	fields: {
+	// 		style: {
+	// 			label: 'Style',
+	// 			type: 'text',
+	// 			required: false,
+	// 		},
+	// 	},
+	// },
+	// gradientCircle: {
+	// 	name: 'Gradient Circle',
+	// 	description:
+	// 		'Generates a 1024x1024 image with a gradient background using random colors at each corner and a random colored circle',
+	// 	intent: 'image_generate',
+	// 	credits: 0.25,
+	// 	fields: {},
+	// },
+	// centeredTextOnWhite: {
+	// 	name: 'Centered Text on White',
+	// 	description:
+	// 		'Generates a 1024x1024 image with centered text rendered on a white background',
+	// 	intent: 'image_generate',
+	// 	credits: 0.25,
+	// 	fields: {
+	// 		text: {
+	// 			label: 'Text',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 		color: {
+	// 			label: 'Text Color',
+	// 			type: 'color',
+	// 			required: false,
+	// 		},
+	// 	},
+	// },
 };
 
 const methodHandlers = {
@@ -160,6 +226,8 @@ const methodHandlers = {
 	fluxImageKlein: (args) => generateFluxImage({ ...args, model: 'fluxKlein' }),
 	fluxPoeticImage: generatePoeticImageFlux,
 	fluxImageEdit: fluxImageEdit,
+	retroDiffusionImage: generateRetroDiffusionImage,
+	pixelLabImage: generatePixelLabImage,
 	uploadImage,
 };
 

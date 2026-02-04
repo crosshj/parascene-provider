@@ -60,7 +60,7 @@ async function fluxRequest(payload = {}, options = {}) {
 
 		let pollCount = 0;
 
-		for (;;) {
+		for (; ;) {
 			pollCount++;
 			const poll = await fetch(polling_url, {
 				headers: {
@@ -87,6 +87,7 @@ async function fluxRequest(payload = {}, options = {}) {
 				log('Flux request ready', {
 					id: rest.id,
 					cost: rest.cost,
+					usd: rest.cost * 0.01,
 					input_mp: rest.input_mp,
 					output_mp: rest.output_mp,
 					duration_ms: duration,

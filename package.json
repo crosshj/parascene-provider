@@ -5,7 +5,8 @@
 	"private": true,
 	"scripts": {
 		"watch": "vercel dev",
-		"test": "NODE_OPTIONS=--experimental-vm-modules jest"
+		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+		"vercel": "vercel"
 	},
 	"dependencies": {
 		"dotenv": "^16.4.5",
