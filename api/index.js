@@ -28,7 +28,7 @@ const fluxResolutionOptions = [
 
 const generationMethods = {
 	fluxImage: {
-		name: 'Flux 2 (Pro)',
+		name: 'Flux 2 Pro',
 		description:
 			'Black Forest Labs Flux 2 Pro. Higher quality, higher credits.',
 		intent: 'image_generate',
@@ -38,11 +38,11 @@ const generationMethods = {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
-			}
+			},
 		},
 	},
 	fluxImageKlein: {
-		name: 'Flux 2 (Klein)',
+		name: 'Flux Klein',
 		description:
 			'Black Forest Labs Flux Klein with resolution options. Lower quality, lower credits.',
 		intent: 'image_generate',
@@ -241,7 +241,8 @@ export default async function handler(req, res) {
 
 			const result = await generator(args);
 
-			const credits = typeof methodDef.credits === 'number' ? methodDef.credits : 0;
+			const credits =
+				typeof methodDef.credits === 'number' ? methodDef.credits : 0;
 
 			res.setHeader('Content-Type', 'image/png');
 			res.setHeader('Content-Length', result.buffer.length);
