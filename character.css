@@ -1,0 +1,118 @@
+:root {
+	color-scheme: dark, light;
+}
+body {
+	margin: 0;
+	font-family:
+		'Inter',
+		'Segoe UI',
+		system-ui,
+		-apple-system,
+		sans-serif;
+	padding: 0;
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+.app-layout {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	max-width: 1400px;
+	gap: 24px;
+	
+}
+svg {
+	background: #000000;
+}
+
+#characterImageColumn.points-hidden circle {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.points-line {
+	fill: currentColor;
+	fill-opacity: 0.2;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-opacity: 0.6;
+}
+
+.points-line-mirror {
+	fill: currentColor;
+	fill-opacity: 0.2;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-opacity: 0.2;
+}
+
+#characterImageColumn circle {
+	r: 8;
+	fill: #94a3b8;
+}
+#characterImageColumn circle[data-point-type="smooth"] {
+	fill: #2dd4bf !important;
+}
+#characterImageColumn circle[data-point-type="arc"] {
+	fill: #fb923c !important;
+}
+#characterImageColumn circle:hover {
+	fill: white !important;
+}
+#characterImageColumn circle[data-point-type="smooth"]:hover {
+	fill: #5eead4 !important;
+}
+#characterImageColumn circle[data-point-type="arc"]:hover {
+	fill: #fdba74 !important;
+}
+#characterImageColumn circle.selected {
+	stroke: white;
+	stroke-width: 3;
+}
+#characterImageColumn circle:not(.selected) {
+	stroke: none;
+}
+
+button {
+	background: #3b82f6;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	font-weight: 500;
+	cursor: pointer;
+	font-size: 14px;
+}
+button:hover {
+	background: #2563eb;
+}
+button.active {
+	background: #059669;
+}
+button.active:hover {
+	background: #047857;
+}
+
+.point-type-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.form-group {
+	margin-top: 16px;
+}
+.form-group label {
+	display: block;
+	font-weight: 500;
+	margin-bottom: 6px;
+}
+.form-group input[type="range"] {
+	width: 100%;
+	margin-top: 4px;
+}
+.form-group #arcStrengthValue {
+	opacity: 0.8;
+	font-weight: normal;
+}

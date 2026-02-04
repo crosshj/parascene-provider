@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Character — parascene-provider</title>
+    <link rel="stylesheet" href="character.css" />
+</head>
+
+<body>
+    <h1>Character</h1>
+    <p class="subtitle">SVG character canvas</p>
+
+    <div class="app-layout">
+        <div class="app-image-panel" id="characterImageColumn">
+            <div class="character-svg-wrap">
+                <svg viewBox="0 0 1024 1024" width="1024" height="1024">
+                    <g class="points-line-mirror-wrap" transform="translate(512,0) scale(-1,1) translate(-512,0)">
+                        <path id="pointsLineMirror" class="points-line-mirror"
+                            d="M 512 371.125 L 551 392.125 L 552 460.125 L 533 484.125 L 581 501.125 L 676 625.125 L 674 653.125 L 648 649.125 L 577 556.125 L 557 625.125 L 568 679.125 L 592 833.125 L 610 940.125 L 653 975.125 L 571 972.125 L 542 839.125 L 512 726.125">
+                        </path>
+                    </g>
+                    <path id="pointsLine" class="points-line"
+                        d="M 512 371.125 L 551 392.125 L 552 460.125 L 533 484.125 L 581 501.125 L 676 625.125 L 674 653.125 L 648 649.125 L 577 556.125 L 557 625.125 L 568 679.125 L 592 833.125 L 610 940.125 L 653 975.125 L 571 972.125 L 542 839.125 L 512 726.125">
+                    </path>
+                    <!-- Head -->
+                    <circle cx="512" cy="371.125"></circle>
+                    <circle cx="551" cy="392.125"></circle>
+                    <circle cx="552" cy="460.125"></circle>
+                    <circle cx="533" cy="484.125"></circle>
+
+                    <!-- Arm -->
+                    <circle cx="581" cy="501.125"></circle>
+                    <circle cx="676" cy="625.125"></circle>
+                    <circle cx="674" cy="653.125"></circle>
+                    <circle cx="648" cy="649.125"></circle>
+                    <circle cx="577" cy="556.125"></circle>
+
+                    <!-- Body -->
+                    <circle cx="557" cy="625.125"></circle>
+                    <circle cx="568" cy="679.125"></circle>
+
+                    <!-- Leg -->
+                    <circle cx="592" cy="833.125"></circle>
+                    <circle cx="610" cy="940.125"></circle>
+                    <circle cx="653" cy="975.125"></circle>
+                    <circle cx="571" cy="972.125"></circle>
+                    <circle cx="542" cy="839.125"></circle>
+                    <circle cx="512" cy="726.125"></circle>
+                </svg>
+            </div>
+        </div>
+
+        <div class="app-forms-panel">
+            <section class="panel-section">
+                <h2>Controls</h2>
+                <p class="panel-note" id="addModeHint">Click Add point, then click the canvas to place a point.</p>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="showPointsToggle" checked />
+                        Show points
+                    </label>
+                </div>
+                <button type="button" id="addPointBtn">Add point</button>
+            </section>
+            <section class="panel-section" id="pointTypeSection" style="display: none;">
+                <h2>Point type</h2>
+                <p class="panel-note">How the line is drawn through the selected point.</p>
+                <div class="point-type-buttons">
+                    <button type="button" id="pointTypeCorner">Corner</button>
+                    <button type="button" id="pointTypeSmooth">Smooth</button>
+                    <button type="button" id="pointTypeArc">Arc</button>
+                </div>
+                <div id="arcStrengthWrap" class="form-group" style="display: none;">
+                    <label for="arcStrengthSlider">Arc strength <span id="arcStrengthValue">0.5</span></label>
+                    <input type="range" id="arcStrengthSlider" min="0.1" max="2" step="0.1" value="0.5" />
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script type="module" src="character.js"></script>
+</body>
+
+</html>
