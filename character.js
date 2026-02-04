@@ -207,14 +207,10 @@ updateLine();
 
 let addMode = false;
 const addPointBtn = document.getElementById('addPointBtn');
-const addModeHint = document.getElementById('addModeHint');
 
 function setAddMode(on) {
 	addMode = on;
 	addPointBtn?.classList.toggle('active', on);
-	addModeHint.textContent = on
-		? 'Click on the canvas to place the point.'
-		: 'Click Add point, then click the canvas to place a point.';
 }
 
 addPointBtn?.addEventListener('click', () => setAddMode(true));
