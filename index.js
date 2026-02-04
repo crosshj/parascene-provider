@@ -127,12 +127,30 @@ function updateMethodFields() {
 			} else if (fieldDef.type === 'color') {
 				input = document.createElement('input');
 				input.type = 'color';
+			} else if (fieldDef.type === 'select') {
+				input = document.createElement('select');
+				const options = fieldDef.options || [];
+				for (const opt of options) {
+					const option = document.createElement('option');
+					option.value = opt.value;
+					option.textContent =
+						typeof opt.credits === 'number'
+							? `${opt.label} (${opt.credits} credits)`
+							: opt.label;
+					input.appendChild(option);
+				}
+				if (fieldDef.default != null && fieldDef.default !== '') {
+					input.value = String(fieldDef.default);
+				}
 			} else {
 				input = document.createElement('input');
 				input.type = 'text';
 			}
 			input.id = `field_${fieldName}`;
-			input.placeholder = fieldDef.required ? 'Required' : 'Optional';
+			input.name = fieldName;
+			if (fieldDef.type !== 'select') {
+				input.placeholder = fieldDef.required ? 'Required' : 'Optional';
+			}
 			formGroup.appendChild(input);
 
 			// Nice UX for image_url fields: show a quick preview.
@@ -177,11 +195,18 @@ async function generateImage() {
 
 	const method = capabilities.methods[methodKey];
 	const args = {};
+	const fieldsContainer = document.getElementById('methodFields');
 
-	// Collect field values
+	// Collect field values from inputs in the method form (by id or name so we always find them)
 	for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
-		const input = document.getElementById(`field_${fieldName}`);
-		if (input && input.value) {
+		const input =
+			document.getElementById(`field_${fieldName}`) ||
+			(fieldsContainer && fieldsContainer.querySelector(`[name="${fieldName}"]`));
+		if (!input) continue;
+		// Selects always have a value; send it (or default). Other fields: send when non-empty.
+		if (fieldDef.type === 'select') {
+			args[fieldName] = input.value ? String(input.value) : String(fieldDef.default ?? '');
+		} else if (input.value) {
 			args[fieldName] = input.value;
 		}
 	}

@@ -4,9 +4,26 @@ import sharp from 'sharp';
 import { log, fetchImageBuffer } from './utils.js';
 
 const { FLUX_API_KEY } = process.env;
-const url = 'https://api.bfl.ai/v1/flux-2-pro';
+const FLUX_PRO_URL = 'https://api.bfl.ai/v1/flux-2-pro';
+const FLUX_KLEIN_9B_URL = 'https://api.bfl.ai/v1/flux-2-klein-9b';
 
-async function fluxRequest(payload = {}) {
+/** Resolution preset key → { width, height, colors }. Value is short label (no spaces), e.g. "nes_8bit". */
+export const RESOLUTION_CONFIG = {
+	nes_8bit: { width: 32, height: 32, colors: 16 },
+	snes_16bit: { width: 64, height: 64, colors: 256 },
+	ai_legacy: { width: 512, height: 512, colors: false },
+	ai_classic: { width: 768, height: 768, colors: false },
+	ai_latest: { width: 1024, height: 1024, colors: false },
+};
+
+const DEFAULT_RESOLUTION_KEY = 'ai_latest';
+
+/** Model from handler ('fluxKlein' | 'flux2Pro') → API URL. */
+function getFluxUrl(model) {
+	return model === 'fluxKlein' ? FLUX_KLEIN_9B_URL : FLUX_PRO_URL;
+}
+
+async function fluxRequest(payload = {}, options = {}) {
 	if (!FLUX_API_KEY) throw new Error('FLUX_API_KEY missing');
 
 	const prompt = payload?.prompt;
@@ -14,6 +31,7 @@ async function fluxRequest(payload = {}) {
 		throw new Error('A prompt string is required');
 	}
 
+	const url = getFluxUrl(options.model) || FLUX_PRO_URL;
 	const startTime = Date.now();
 	let rest = null;
 
@@ -107,24 +125,98 @@ async function fluxRequest(payload = {}) {
 	}
 }
 
-export async function flux(prompt) {
-	return fluxRequest({
-		prompt,
-		prompt_upsampling: false,
-		seed: 0,
-		width: 1024,
-		height: 1024,
-	});
+export async function flux(prompt, options = {}) {
+	const apiWidth = options.width ?? 1024;
+	const apiHeight = options.height ?? 1024;
+	const model = options.model ?? 'flux2Pro';
+
+	return fluxRequest(
+		{
+			prompt,
+			prompt_upsampling: false,
+			seed: 0,
+			width: apiWidth,
+			height: apiHeight,
+		},
+		{ model },
+	);
 }
 
+const API_SIZE = 1024;
+const PIXEL_ART_PROMPT = `
+VERY BOLD AND THICK OUTLINES
+flat colors
+simple shading
+limited color palette
+very limited details
+very limited textures
+no gradients
+no soft lighting
+no reflections
+no shadows
+no highlights
+no outlines
+no borders
+no backgrounds
+no backgrounds
+`;
+
 export async function generateFluxImage(args = {}) {
-	const result = await flux(args.prompt || args.text);
+	const resolutionKey = String(args.resolution || DEFAULT_RESOLUTION_KEY).toLowerCase();
+	const config = RESOLUTION_CONFIG[resolutionKey] ?? RESOLUTION_CONFIG[DEFAULT_RESOLUTION_KEY];
+	const { width: targetWidth, height: targetHeight, colors } = config;
+	// Model from handler ('fluxKlein' | 'flux2Pro') determines which API URL is called.
+	const model = args.model ?? 'flux2Pro';
+
+	// 1. Always request 1024×1024; model picks endpoint (Pro vs Klein).
+	let prompt = args.prompt || args.text;
+	if (targetWidth < API_SIZE || targetHeight < API_SIZE) {
+		prompt = `${prompt}, ${PIXEL_ART_PROMPT}`;
+	}
+
+	const result = await flux(prompt, {
+		width: API_SIZE,
+		height: API_SIZE,
+		model,
+	});
+
+	let buffer = result.buffer;
+	let width = result.width ?? API_SIZE;
+	let height = result.height ?? API_SIZE;
+
+	// 2. If target is below 1024: downscale → (limit palette if colors) → nearest-neighbor up to 1024.
+	if (targetWidth < API_SIZE || targetHeight < API_SIZE) {
+		let downscaled = await sharp(buffer)
+			.resize(targetWidth, targetHeight, { kernel: 'nearest' })
+			.png()
+			.toBuffer();
+		if (colors) {
+			downscaled = await sharp(downscaled)
+				.png({ palette: true, colours: colors })
+				.toBuffer();
+		}
+		buffer = await sharp(downscaled)
+			.resize(API_SIZE, API_SIZE, { kernel: 'nearest' })
+			.png()
+			.toBuffer();
+		width = API_SIZE;
+		height = API_SIZE;
+	} else if (width < API_SIZE || height < API_SIZE) {
+		buffer = await sharp(buffer)
+			.resize(API_SIZE, API_SIZE, { kernel: 'nearest' })
+			.png()
+			.toBuffer();
+		width = API_SIZE;
+		height = API_SIZE;
+	}
+
 	return {
 		...result,
+		buffer,
 		prompt: (args.prompt || args.text || '').trim(),
 		color: '#000000',
-		width: 1024,
-		height: 1024,
+		width,
+		height,
 	};
 }
 

@@ -18,11 +18,19 @@ function validateAuth(req) {
 	return token === process.env.PARASCENE_API_KEY;
 }
 
+const fluxResolutionOptions = [
+	{ label: 'NES 8-bit', value: 'nes_8bit' },
+	{ label: 'SNES 16-bit', value: 'snes_16bit' },
+	{ label: 'AI Legacy', value: 'ai_legacy' },
+	{ label: 'AI Classic', value: 'ai_classic' },
+	{ label: 'AI Latest', value: 'ai_latest' },
+];
+
 const generationMethods = {
 	fluxImage: {
-		name: 'Flux 2',
+		name: 'Flux 2 (Pro)',
 		description:
-			'Calls the Black Forest Labs Flux endpoint to generate a 1024x1024 image from a prompt.',
+			'Black Forest Labs Flux 2 Pro. Higher quality, higher credits.',
 		intent: 'image_generate',
 		credits: 5,
 		fields: {
@@ -30,6 +38,27 @@ const generationMethods = {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
+			}
+		},
+	},
+	fluxImageKlein: {
+		name: 'Flux 2 (Klein)',
+		description:
+			'Black Forest Labs Flux Klein with resolution options. Lower quality, lower credits.',
+		intent: 'image_generate',
+		credits: 3.5,
+		fields: {
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+			resolution: {
+				label: 'Resolution',
+				type: 'select',
+				required: false,
+				default: 'ai_latest',
+				options: fluxResolutionOptions,
 			},
 		},
 	},
@@ -127,7 +156,8 @@ const methodHandlers = {
 	gradientCircle: generateGradientCircle,
 	centeredTextOnWhite: generateTextImage,
 	poeticImage: generatePoeticImage,
-	fluxImage: generateFluxImage,
+	fluxImage: (args) => generateFluxImage({ ...args, model: 'flux2Pro' }),
+	fluxImageKlein: (args) => generateFluxImage({ ...args, model: 'fluxKlein' }),
 	fluxPoeticImage: generatePoeticImageFlux,
 	fluxImageEdit: fluxImageEdit,
 	uploadImage,
@@ -211,12 +241,15 @@ export default async function handler(req, res) {
 
 			const result = await generator(args);
 
+			const credits = typeof methodDef.credits === 'number' ? methodDef.credits : 0;
+
 			res.setHeader('Content-Type', 'image/png');
 			res.setHeader('Content-Length', result.buffer.length);
 			res.setHeader('Cache-Control', 'no-cache');
-			res.setHeader('X-Image-Color', result.color);
+			res.setHeader('X-Image-Color', result?.color ?? '#000000');
 			res.setHeader('X-Image-Width', result.width.toString());
 			res.setHeader('X-Image-Height', result.height.toString());
+			res.setHeader('X-Credits', String(credits));
 
 			return res.send(result.buffer);
 		} catch (error) {
