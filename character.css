@@ -60,7 +60,7 @@ svg {
 }
 
 .points-line {
-	fill: currentColor;
+	fill: var(--character-body-fill, currentColor);
 	fill-opacity: 0.2;
 	stroke: currentColor;
 	stroke-width: 2;
@@ -68,7 +68,7 @@ svg {
 }
 
 .points-line-mirror {
-	fill: currentColor;
+	fill: var(--character-body-fill, currentColor);
 	fill-opacity: 0.2;
 	stroke: currentColor;
 	stroke-width: 2;
@@ -199,6 +199,23 @@ button.active:hover {
 .form-group #arcStrengthValue {
 	opacity: 0.8;
 	font-weight: normal;
+}
+.form-group input[type="color"] {
+	display: block;
+	width: 100%;
+	max-width: 120px;
+	height: 2.5rem;
+	padding: 2px;
+	border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+	border-radius: 6px;
+	background: transparent;
+	cursor: pointer;
+}
+.form-group .body-fill-value {
+	display: block;
+	margin-top: 4px;
+	font-size: 0.875rem;
+	opacity: 0.85;
 }
 
 .point-type-buttons {

@@ -4,6 +4,44 @@ const svg = document.querySelector('#characterImageColumn svg');
 const pointsLine = document.getElementById('pointsLine');
 const pointsLineMirror = document.getElementById('pointsLineMirror');
 
+const BODY_FILL_STORAGE_KEY = 'character-body-fill';
+const BODY_FILL_DEFAULT = '#475569';
+
+function getStoredBodyFill() {
+	try {
+		const s = localStorage.getItem(BODY_FILL_STORAGE_KEY);
+		if (s && /^#[0-9a-fA-F]{6}$/.test(s)) return s;
+	} catch (_) {}
+	return BODY_FILL_DEFAULT;
+}
+
+function setStoredBodyFill(hex) {
+	try {
+		localStorage.setItem(BODY_FILL_STORAGE_KEY, hex);
+	} catch (_) {}
+}
+
+function applyBodyFillColor(hex) {
+	const col = document.getElementById('characterImageColumn');
+	if (col) col.style.setProperty('--character-body-fill', hex);
+	const input = document.getElementById('bodyFillColor');
+	if (input) input.value = hex;
+	const valueEl = document.getElementById('bodyFillValue');
+	if (valueEl) valueEl.textContent = hex;
+}
+
+function initBodyFillColor() {
+	const input = document.getElementById('bodyFillColor');
+	if (!input) return;
+	const hex = getStoredBodyFill();
+	applyBodyFillColor(hex);
+	input.addEventListener('input', () => {
+		const hex = input.value;
+		applyBodyFillColor(hex);
+		setStoredBodyFill(hex);
+	});
+}
+
 const POINT_TYPES = ['corner', 'smooth', 'arc'];
 
 function getPointType(point) {
@@ -239,6 +277,7 @@ function initPointDrag() {
 }
 
 initPointDrag();
+initBodyFillColor();
 updateLine();
 
 let addMode = false;
