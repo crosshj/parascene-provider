@@ -1,5 +1,19 @@
 let capabilities = null;
 
+/** Special methods not in GET capabilities; always available in UI for testing. */
+const SPECIAL_METHODS = {
+	advanced_query: {
+		name: 'Advanced Query (special)',
+		credits: undefined,
+		fields: {},
+	},
+	advanced_generate: {
+		name: 'Advanced Generate (special)',
+		credits: undefined,
+		fields: {},
+	},
+};
+
 const CONTROLS_STORAGE_KEY = 'parascene_generation_controls';
 let _currentMethodKey = null;
 
@@ -105,21 +119,22 @@ async function fetchCapabilities() {
 			return;
 		}
 
-		capabilities = data;
+		capabilities = { ...data, methods: { ...data.methods, ...SPECIAL_METHODS } };
 		resultDiv.innerHTML = `
 			<div class="success">✓ Authenticated successfully</div>
 			<div class="json-toggle" onclick="toggleJson(this)">Capabilities JSON Response</div>
 			<div class="json-content"><pre>${JSON.stringify(data, null, 2)}</pre></div>
 		`;
 
-		// Populate method dropdown
+		// Populate method dropdown (includes special methods for testing)
 		const methodSelect = document.getElementById('method');
 		methodSelect.innerHTML = '<option value="">Select a method...</option>';
-		const methodKeys = Object.keys(data.methods);
-		for (const [key, method] of Object.entries(data.methods)) {
+		const methodKeys = Object.keys(capabilities.methods);
+		for (const [key, method] of Object.entries(capabilities.methods)) {
 			const option = document.createElement('option');
 			option.value = key;
-			option.textContent = `${method.name} (${method.credits} credits)`;
+			option.textContent =
+				key in SPECIAL_METHODS ? method.name : `${method.name} (${method.credits} credits)`;
 			methodSelect.appendChild(option);
 		}
 
@@ -146,7 +161,7 @@ function updateMethodFields() {
 	const fieldsDiv = document.getElementById('methodFields');
 	const generateBtn = document.getElementById('generateBtn');
 
-	if (!methodKey || !capabilities) {
+	if (!methodKey || !capabilities?.methods) {
 		fieldsDiv.innerHTML = '';
 		generateBtn.disabled = true;
 		return;
@@ -282,7 +297,15 @@ async function generateImage() {
 		return;
 	}
 
-	const method = capabilities.methods[methodKey];
+	const method = capabilities?.methods?.[methodKey];
+	if (!method) {
+		const panel = document.getElementById('generationImageColumn');
+		if (panel) {
+			panel.classList.remove('has-content');
+			panel.innerHTML = '<div class="error">Unknown method</div>';
+		}
+		return;
+	}
 	const args = {};
 	const fieldsContainer = document.getElementById('methodFields');
 
@@ -325,10 +348,20 @@ async function generateImage() {
 		});
 
 		if (!response.ok) {
-			const data = await response.json();
+			const errData = await response.json().catch(() => ({}));
 			if (imagePanel) {
 				imagePanel.classList.remove('has-content');
-				imagePanel.innerHTML = `<div class="error">Error ${response.status}: ${data.message || data.error}</div>`;
+				imagePanel.innerHTML = `<div class="error">Error ${response.status}: ${errData.message || errData.error || response.statusText}</div>`;
+			}
+			return;
+		}
+
+		const contentType = response.headers.get('Content-Type') || '';
+		if (contentType.includes('application/json')) {
+			const jsonData = await response.json();
+			if (imagePanel) {
+				imagePanel.classList.add('has-content');
+				imagePanel.innerHTML = `<pre class="json-result">${JSON.stringify(jsonData, null, 2)}</pre>`;
 			}
 			return;
 		}

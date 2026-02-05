@@ -9,6 +9,10 @@ import {
 import { uploadImage } from '../generators/imageEdit.js';
 import { generateRetroDiffusionImage } from '../generators/retroDiffusion.js';
 import { generatePixelLabImage } from '../generators/pixelLab.js';
+import {
+	getAdvancedQueryResponse,
+	generateAdvancedImage,
+} from '../generators/advanced.js';
 
 function validateAuth(req) {
 	const authHeader = req.headers.authorization;
@@ -17,6 +21,17 @@ function validateAuth(req) {
 	}
 	const token = authHeader.slice(7);
 	return token === process.env.PARASCENE_API_KEY;
+}
+
+function sendImageResponse(res, result, credits) {
+	res.setHeader('Content-Type', 'image/png');
+	res.setHeader('Content-Length', result.buffer.length);
+	res.setHeader('Cache-Control', 'no-cache');
+	res.setHeader('X-Image-Color', result?.color ?? '#000000');
+	res.setHeader('X-Image-Width', result.width.toString());
+	res.setHeader('X-Image-Height', result.height.toString());
+	res.setHeader('X-Credits', String(credits));
+	return res.send(result.buffer);
 }
 
 const fluxResolutionOptions = [
@@ -274,6 +289,15 @@ export default async function handler(req, res) {
 				});
 			}
 
+			// Special methods not listed in config
+			if (body.method === 'advanced_query') {
+				return res.status(200).json(getAdvancedQueryResponse(body));
+			}
+			if (body.method === 'advanced_generate') {
+				const result = await generateAdvancedImage(body);
+				return sendImageResponse(res, result, result.credits ?? 0);
+			}
+
 			if (!generationMethods[body.method]) {
 				return res.status(400).json({
 					error: `Unknown generation method: ${body.method}`,
@@ -308,19 +332,9 @@ export default async function handler(req, res) {
 			}
 
 			const result = await generator(args);
-
 			const credits =
 				typeof methodDef.credits === 'number' ? methodDef.credits : 0;
-
-			res.setHeader('Content-Type', 'image/png');
-			res.setHeader('Content-Length', result.buffer.length);
-			res.setHeader('Cache-Control', 'no-cache');
-			res.setHeader('X-Image-Color', result?.color ?? '#000000');
-			res.setHeader('X-Image-Width', result.width.toString());
-			res.setHeader('X-Image-Height', result.height.toString());
-			res.setHeader('X-Credits', String(credits));
-
-			return res.send(result.buffer);
+			return sendImageResponse(res, result, credits);
 		} catch (error) {
 			console.error('Error generating image:', error);
 			return res.status(500).json({

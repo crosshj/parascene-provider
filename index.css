@@ -85,7 +85,6 @@ body {
 		min-width: 0;
 		width: auto;
 		position: sticky;
-		top: 24px;
 	}
 	.app-image-panel.has-content {
 		aspect-ratio: 1;
@@ -183,6 +182,21 @@ pre {
 	font-size: 14px;
 	text-align: center;
 	padding: 24px;
+}
+.app-image-panel.has-content .json-result {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	padding: 16px;
+	background: #1e293b;
+	color: #e2e8f0;
+	font-size: 13px;
+	line-height: 1.5;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	border-radius: 6px;
+	box-sizing: border-box;
 }
 .app-image-panel .image-loading {
 	color: #64748b;
