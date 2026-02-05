@@ -7,6 +7,11 @@ const { FLUX_API_KEY } = process.env;
 const FLUX_PRO_URL = 'https://api.bfl.ai/v1/flux-2-pro';
 const FLUX_KLEIN_9B_URL = 'https://api.bfl.ai/v1/flux-2-klein-9b';
 
+/** Delay (ms) before first poll of Flux job status. */
+const FLUX_POLL_INITIAL_DELAY_MS = 5000;
+/** Interval (ms) between subsequent polls. */
+const FLUX_POLL_INTERVAL_MS = 1000;
+
 /** Resolution preset key → { width, height, colors }. Value is short label (no spaces), e.g. "nes_8bit". */
 export const RESOLUTION_CONFIG = {
 	nes_8bit: { width: 32, height: 32, colors: 16 },
@@ -57,6 +62,8 @@ async function fluxRequest(payload = {}, options = {}) {
 			input_mp: rest.input_mp,
 			output_mp: rest.output_mp,
 		});
+
+		await new Promise((r) => setTimeout(r, FLUX_POLL_INITIAL_DELAY_MS));
 
 		let pollCount = 0;
 
@@ -115,7 +122,7 @@ async function fluxRequest(payload = {}, options = {}) {
 			}
 
 			log('Polling...');
-			await new Promise((r) => setTimeout(r, 1000));
+			await new Promise((r) => setTimeout(r, FLUX_POLL_INTERVAL_MS));
 		}
 	} catch (err) {
 		log('Flux request error', {

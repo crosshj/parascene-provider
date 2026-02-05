@@ -13,6 +13,7 @@ import {
 	getAdvancedQueryResponse,
 	generateAdvancedImage,
 } from '../generators/advanced.js';
+import { exampleItems } from '../test/fixtures/advanced.items.js';
 
 function validateAuth(req) {
 	const authHeader = req.headers.authorization;
@@ -253,6 +254,12 @@ export default async function handler(req, res) {
 				error: 'Unauthorized',
 				message: 'Valid API key required. Use Authorization: Bearer <key>',
 			});
+		}
+
+		// Return mock items for advanced_generate UI (test fixture in place)
+		const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
+		if (url.searchParams.get('mockItems') === '1') {
+			return res.status(200).json({ items: exampleItems });
 		}
 
 		const capabilities = {

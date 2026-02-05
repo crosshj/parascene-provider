@@ -1,5 +1,8 @@
 let capabilities = null;
 
+/** Cached mock items for advanced_generate (fetched from API, which uses test/fixtures/advanced.items.js). */
+let advancedMockItemsCache = null;
+
 /** Special methods not in GET capabilities; always available in UI for testing. */
 const SPECIAL_METHODS = {
 	advanced_query: {
@@ -10,7 +13,13 @@ const SPECIAL_METHODS = {
 	advanced_generate: {
 		name: 'Advanced Generate (special)',
 		credits: undefined,
-		fields: {},
+		fields: {
+			prompt: {
+				label: 'Prompt (optional)',
+				type: 'text',
+				required: false,
+			},
+		},
 	},
 };
 
@@ -322,6 +331,28 @@ async function generateImage() {
 		} else if (input.value) {
 			args[fieldName] = input.value;
 		}
+	}
+
+	// Advanced generate: send mock items from API (test fixture in place); prompt comes from the form
+	if (methodKey === 'advanced_generate') {
+		let items = advancedMockItemsCache;
+		if (!items) {
+			const res = await fetch(`${window.location.origin}/api?mockItems=1`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			if (!res.ok) {
+				if (imagePanel) {
+					imagePanel.classList.remove('has-content');
+					imagePanel.innerHTML = `<div class="error">Failed to load mock items: ${res.status}</div>`;
+				}
+				if (generateBtn) generateBtn.disabled = false;
+				return;
+			}
+			const data = await res.json();
+			items = Array.isArray(data?.items) ? data.items : [];
+			advancedMockItemsCache = items;
+		}
+		args.items = items;
 	}
 
 	const imagePanel = document.getElementById('generationImageColumn');
