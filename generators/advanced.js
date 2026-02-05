@@ -11,11 +11,17 @@ const ADVANCED_GENERATE_CREDITS = 3;
 
 /** Generate image for advanced_generate: "advanced generate" in gold letters via Flux 2 Pro. Returns result with credits. */
 export async function generateAdvancedImage(body) {
-	console.log('generateAdvancedImage', body);
+	let itemsSent;
+	try	{
+		itemsSent = body.args.items.length
+	} catch(e){}
+
+	//console.log('generateAdvancedImage', body);
 	const result = await generateFluxImage({
 		model: 'flux2Pro',
 		prompt:
-			'the text "advanced generate" in large gold letters, clean typography on a simple black background',
+			'the text "advanced generate" in large gold letters, clean typography on a simple black background' + 
+			(itemsSent ? `\n under this show the text "items: ${itemsSent}"` : ''),
 	});
 	return { ...result, credits: ADVANCED_GENERATE_CREDITS };
 }
