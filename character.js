@@ -41,11 +41,38 @@ function setPointType(point, type) {
 	updatePointTypeUI();
 }
 
+/**
+ * Chaikin's corner-cutting: one subdivision step for an open polyline.
+ * Like subdivision surfaces in 3D — each segment becomes two, points move toward neighbors.
+ * @param {{ x: number, y: number }[]} points
+ * @returns {{ x: number, y: number }[]}
+ */
+function chaikinSubdivide(points) {
+	if (points.length < 2) return [...points];
+	const out = [points[0]];
+	for (let i = 0; i < points.length - 1; i++) {
+		const a = points[i];
+		const b = points[i + 1];
+		out.push(
+			{ x: 0.75 * a.x + 0.25 * b.x, y: 0.75 * a.y + 0.25 * b.y },
+			{ x: 0.25 * a.x + 0.75 * b.x, y: 0.25 * a.y + 0.75 * b.y },
+		);
+	}
+	out.push(points[points.length - 1]);
+	return out;
+}
+
+function getSubdivisionLevel() {
+	const el = document.getElementById('subdivisionLevel');
+	const v = el ? parseInt(el.value, 10) : 0;
+	return Number.isFinite(v) ? Math.max(0, Math.min(5, v)) : 0;
+}
+
 /** Recompute the path through all points in DOM order. Corner = straight segment, smooth = cubic Bezier through point. */
 function updateLine() {
 	if (!svg || !pointsLine) return;
 	const elements = [...svg.querySelectorAll('circle')];
-	const points = elements.map((p) => {
+	let points = elements.map((p) => {
 		const type = getPointType(p);
 		return {
 			x: parseFloat(p.getAttribute('cx')),
@@ -54,6 +81,15 @@ function updateLine() {
 			arcStrength: type === 'arc' ? getArcStrength(p) : 0.5,
 		};
 	});
+	// Apply subdivision (like subdivision surfaces): refine control polygon before drawing
+	const subdivLevel = getSubdivisionLevel();
+	for (let k = 0; k < subdivLevel; k++) {
+		points = chaikinSubdivide(points.map((p) => ({ x: p.x, y: p.y }))).map((p) => ({
+			...p,
+			type: 'corner',
+			arcStrength: 0.5,
+		}));
+	}
 	if (points.length === 0) {
 		pointsLine.setAttribute('d', '');
 		if (pointsLineMirror) pointsLineMirror.setAttribute('d', '');
@@ -222,6 +258,8 @@ showPointsToggle?.addEventListener('change', () => {
 		characterImageColumn.classList.toggle('points-hidden', !showPointsToggle.checked);
 	}
 });
+
+document.getElementById('subdivisionLevel')?.addEventListener('change', () => updateLine());
 
 function addPointAt(clientX, clientY) {
 	if (!svg) return;
