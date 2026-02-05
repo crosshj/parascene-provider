@@ -40,7 +40,7 @@ export async function makeFluxPrompt(input, opts = {}) {
         "Rules: Describe who the characters are by name and the setting. Make it clear they are in conversation (talking, reacting). Always indicate each speaker's name so Flux can show who is talking by labelling them. Use names from the input (items, authors) when available. Style can be comic strip, storybook, or cinematic scene with dialogue. Keep one paragraph.",
         "",
         "--- GENERAL ---",
-        "Base the image on the user's items and prompt. Pick the style that best matches their request; if input.mode is set, use that style. Use actual names and content from the input, but never mention or display data keys or types (e.g. no 'author:' as a label—just the person's name). Output only the Flux prompt, one paragraph, concrete and vivid.",
+        "Base the image on the user's items and prompt. Pick the style that best matches their request; if input.mode is set, use that style. Use actual names and content from the input, but never mention or display data keys or types (e.g. no 'author:' as a label—just the person's name). When describing people or characters, infer and use the correct gender from the name (e.g. Alice → woman/she, Bob → man/he) so Flux depicts them correctly. Output only the Flux prompt, one paragraph, concrete and vivid.",
     ].join("\n");
 
     try {
