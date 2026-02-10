@@ -6,6 +6,7 @@ import { log, fetchImageBuffer } from './utils.js';
 const { FLUX_API_KEY } = process.env;
 const FLUX_PRO_URL = 'https://api.bfl.ai/v1/flux-2-pro';
 const FLUX_KLEIN_9B_URL = 'https://api.bfl.ai/v1/flux-2-klein-9b';
+const FLUX_FLEX_URL = 'https://api.bfl.ai/v1/flux-2-flex';
 
 /** Delay (ms) before first poll of Flux job status. */
 const FLUX_POLL_INITIAL_DELAY_MS = 5000;
@@ -23,9 +24,17 @@ export const RESOLUTION_CONFIG = {
 
 const DEFAULT_RESOLUTION_KEY = 'ai_latest';
 
-/** Model from handler ('fluxKlein' | 'flux2Pro') → API URL. */
+/** Model from handler ('fluxKlein' | 'flux2Flex' | 'flux2Pro') → API URL. */
 function getFluxUrl(model) {
-	return model === 'fluxKlein' ? FLUX_KLEIN_9B_URL : FLUX_PRO_URL;
+	switch (model) {
+		case 'fluxKlein':
+			return FLUX_KLEIN_9B_URL;
+		case 'flux2Flex':
+			return FLUX_FLEX_URL;
+		case 'flux2Pro':
+		default:
+			return FLUX_PRO_URL;
+	}
 }
 
 async function fluxRequest(payload = {}, options = {}) {
@@ -49,6 +58,7 @@ async function fluxRequest(payload = {}, options = {}) {
 			},
 			body: JSON.stringify({
 				...payload,
+				prompt_upsampling: false,
 				prompt: prompt.trim(),
 			}),
 		});

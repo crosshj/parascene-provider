@@ -58,6 +58,20 @@ const generationMethods = {
 			},
 		},
 	},
+	fluxImageFlex: {
+		name: 'Flux 2 Flex',
+		description:
+			'Black Forest Labs Flux 2 Flex. More control, highest cost.',
+		intent: 'image_generate',
+		credits: 6,
+		fields: {
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+		},
+	},
 	fluxImageKlein: {
 		name: 'Flux Klein',
 		description:
@@ -239,6 +253,7 @@ const methodHandlers = {
 	centeredTextOnWhite: generateTextImage,
 	poeticImage: generatePoeticImage,
 	fluxImage: (args) => generateFluxImage({ ...args, model: 'flux2Pro' }),
+	fluxImageFlex: (args) => generateFluxImage({ ...args, model: 'flux2Flex' }),
 	fluxImageKlein: (args) => generateFluxImage({ ...args, model: 'fluxKlein' }),
 	fluxPoeticImage: generatePoeticImageFlux,
 	fluxImageEdit: fluxImageEdit,

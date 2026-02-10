@@ -15,6 +15,6 @@
 	},
 	"devDependencies": {
 		"jest": "^30.2.0",
-		"vercel": "^50.10.0"
+		"vercel": "^50.14.0"
 	}
 }
