@@ -98,7 +98,7 @@ export async function generateFluxProOutpaint1024To169(args = {}) {
 
 	const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
 	
-	const infillPromptDefault = 'Extend the scene naturally to a widescreen composition; match lighting, perspective, and style; do not change the central subject.'
+	const infillPromptDefault = 'Extend the scene naturally to a widescreen composition; match lighting, perspective, and style; do not change the central subject.  Do not include signatures, watermarks, or other text unless it is part of the original image.'
 	const infillPromptDefault2 = 'seamless extension of the scene, same style and quality'
 	const result = await fluxFillRequest({
 		image: compositeWithAlpha.toString('base64'),
