@@ -7,6 +7,7 @@ const { FLUX_API_KEY } = process.env;
 const FLUX_PRO_URL = 'https://api.bfl.ai/v1/flux-2-pro';
 const FLUX_KLEIN_9B_URL = 'https://api.bfl.ai/v1/flux-2-klein-9b';
 const FLUX_FLEX_URL = 'https://api.bfl.ai/v1/flux-2-flex';
+const FLUX_PRO_1_FILL_URL = 'https://api.bfl.ai/v1/flux-pro-1.0-fill';
 
 /** Delay (ms) before first poll of Flux job status. */
 const FLUX_POLL_INITIAL_DELAY_MS = 5000;
@@ -136,6 +137,117 @@ async function fluxRequest(payload = {}, options = {}) {
 		}
 	} catch (err) {
 		log('Flux request error', {
+			id: rest?.id,
+			message: err?.message || String(err),
+		});
+		throw err;
+	}
+}
+
+/**
+ * Call BFL FLUX.1 Fill [pro] (flux-pro-1.0-fill). Payload must include image (base64).
+ * Uses same polling pattern as fluxRequest. Returns { buffer, width, height, ... }.
+ */
+export async function fluxFillRequest(payload = {}, options = {}) {
+	if (!FLUX_API_KEY) throw new Error('FLUX_API_KEY missing');
+
+	const image = payload?.image;
+	if (!image || typeof image !== 'string') {
+		throw new Error('fluxFillRequest requires payload.image (base64 string)');
+	}
+
+	const url = options.url ?? FLUX_PRO_1_FILL_URL;
+	const startTime = Date.now();
+	let rest = null;
+
+	try {
+		const post = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				'x-key': FLUX_API_KEY,
+			},
+			body: JSON.stringify({
+				image,
+				prompt: typeof payload.prompt === 'string' ? payload.prompt : '',
+				prompt_upsampling: false,
+				seed: payload.seed ?? 0,
+				steps: payload.steps ?? 50,
+				guidance: payload.guidance ?? 60,
+				output_format: payload.output_format ?? 'png',
+				...payload,
+			}),
+		});
+		if (!post.ok) throw new Error(await post.text());
+		const { polling_url, ...r } = await post.json();
+		rest = r;
+
+		log('Flux fill request created', {
+			id: rest.id,
+			cost: rest.cost,
+			input_mp: rest.input_mp,
+			output_mp: rest.output_mp,
+		});
+
+		await new Promise((r) => setTimeout(r, FLUX_POLL_INITIAL_DELAY_MS));
+
+		let pollCount = 0;
+
+		for (;;) {
+			pollCount++;
+			const poll = await fetch(polling_url, {
+				headers: { 'x-key': FLUX_API_KEY },
+			});
+			if (!poll.ok) throw new Error(await poll.text());
+			const j = await poll.json();
+
+			const { status, ...jRest } = j;
+
+			if (status === 'Ready') {
+				const img = await fetch(j.result.sample);
+				if (!img.ok) throw new Error(await img.text());
+				const buffer = Buffer.from(await img.arrayBuffer());
+				let meta = null;
+				try {
+					meta = await sharp(buffer).metadata();
+				} catch {
+					// ignore metadata failures
+				}
+				const duration = Date.now() - startTime;
+
+				const defaultCost = 5;
+				log('Flux fill request ready', {
+					id: rest.id,
+					cost: rest.cost || defaultCost,
+					usd: (rest.cost || defaultCost) * 0.01,
+					duration_ms: duration,
+					pollCount,
+				});
+
+				return {
+					buffer,
+					width: typeof meta?.width === 'number' ? meta.width : undefined,
+					height: typeof meta?.height === 'number' ? meta.height : undefined,
+					format: meta?.format,
+					mime: img.headers.get('content-type') || undefined,
+					duration,
+					pollCount,
+					final: jRest,
+					...rest,
+				};
+			}
+			if (status !== 'Pending') {
+				log('Flux fill non-pending status', { id: rest?.id, status, response: j });
+				throw new Error(
+					`Flux fill request did not complete: status=${status} id=${rest?.id || 'unknown'}`
+				);
+			}
+
+			log('Flux fill polling...');
+			await new Promise((r) => setTimeout(r, FLUX_POLL_INTERVAL_MS));
+		}
+	} catch (err) {
+		log('Flux fill request error', {
 			id: rest?.id,
 			message: err?.message || String(err),
 		});

@@ -8,6 +8,7 @@ import {
 	generateFluxImage,
 	generatePoeticImageFlux,
 } from '../generators/flux.js';
+import { generateFluxProOutpaint1024To169 } from '../generators/advanced.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,7 +62,7 @@ describe('generators', () => {
 		expect(saved).toContain('text-image-custom-color.png');
 	});
 
-	it.only('calls Flux generator to create an image', async () => {
+	it('calls Flux generator to create an image', async () => {
 		const result = await generateFluxImage({
 			prompt: `haunted tropical reggae voodoo game level`.trim(),
 		});
@@ -71,6 +72,23 @@ describe('generators', () => {
 
 		const saved = await writeImage('flux-image.png', result.buffer);
 		expect(saved).toContain('flux-image.png');
+	});
+
+	it('Flux Pro outpaint: 1024x1024 → 16:9 1824x1024 via flux-pro-1.0-fill with alpha', async () => {
+		const input = await generateGradientCircle();
+		expect(input.width).toBe(1024);
+		expect(input.height).toBe(1024);
+
+		const result = await generateFluxProOutpaint1024To169({
+			image_buffer: input.buffer,
+			prompt: 'seamless natural background, same style',
+		});
+		expectBufferResult(result);
+		expect(result.width).toBe(1824);
+		expect(result.height).toBe(1024);
+
+		const saved = await writeImage('flux-pro-outpaint-1824x1024.png', result.buffer);
+		expect(saved).toContain('flux-pro-outpaint-1824x1024.png');
 	});
 
 	it('calls Flux Zydeco generator to create an image', async () => {

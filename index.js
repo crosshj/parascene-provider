@@ -14,9 +14,24 @@ const SPECIAL_METHODS = {
 		name: 'Advanced Generate (special)',
 		credits: undefined,
 		fields: {
+			operation: {
+				label: 'Operation',
+				type: 'select',
+				required: true,
+				default: 'generate',
+				options: [
+					{ value: 'generate', label: 'Generate from items (Flux 2 Pro)' },
+					{ value: 'outpaint', label: 'Outpaint 1024→16:9 (Flux Pro Fill)' },
+				],
+			},
 			prompt: {
 				label: 'Prompt (optional)',
 				type: 'text',
+				required: false,
+			},
+			image_url: {
+				label: 'Image URL (for outpaint)',
+				type: 'url',
 				required: false,
 			},
 		},
@@ -283,10 +298,30 @@ function updateMethodFields() {
 				formGroup.appendChild(preview);
 			}
 
+			// Advanced outpaint: show image_url only when operation is "outpaint"
+			if (methodKey === 'advanced_generate' && fieldName === 'image_url') {
+				formGroup.dataset.advancedOperation = 'outpaint';
+				formGroup.style.display = 'none';
+			}
+
 			fieldGroup.appendChild(formGroup);
 		}
 
 		fieldsDiv.appendChild(fieldGroup);
+
+		// Advanced generate: toggle image_url visibility by operation
+		if (methodKey === 'advanced_generate') {
+			const operationSelect = document.getElementById('field_operation') || fieldsDiv.querySelector('[name="operation"]');
+			const imageUrlGroup = fieldsDiv.querySelector('[data-advanced-operation="outpaint"]');
+			const updateOutpaintVisibility = () => {
+				const op = operationSelect?.value;
+				if (imageUrlGroup) {
+					imageUrlGroup.style.display = op === 'outpaint' ? '' : 'none';
+				}
+			};
+			updateOutpaintVisibility();
+			operationSelect?.addEventListener('change', updateOutpaintVisibility);
+		}
 	}
 
 	_currentMethodKey = methodKey;
@@ -333,26 +368,39 @@ async function generateImage() {
 		}
 	}
 
-	// Advanced generate: send mock items from API (test fixture in place); prompt comes from the form
+	// Advanced generate: by operation — outpaint needs image_url; generate needs mock items
 	if (methodKey === 'advanced_generate') {
-		let items = advancedMockItemsCache;
-		if (!items) {
-			const res = await fetch(`${window.location.origin}/api?mockItems=1`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			if (!res.ok) {
+		if (args.operation === 'outpaint') {
+			const imageUrl = (args.image_url || '').trim();
+			if (!imageUrl) {
 				if (imagePanel) {
 					imagePanel.classList.remove('has-content');
-					imagePanel.innerHTML = `<div class="error">Failed to load mock items: ${res.status}</div>`;
+					imagePanel.innerHTML = '<div class="error">Image URL is required for Outpaint</div>';
 				}
 				if (generateBtn) generateBtn.disabled = false;
 				return;
 			}
-			const data = await res.json();
-			items = Array.isArray(data?.items) ? data.items : [];
-			advancedMockItemsCache = items;
+			// args already have image_url and prompt from form
+		} else {
+			let items = advancedMockItemsCache;
+			if (!items) {
+				const res = await fetch(`${window.location.origin}/api?mockItems=1`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) {
+					if (imagePanel) {
+						imagePanel.classList.remove('has-content');
+						imagePanel.innerHTML = `<div class="error">Failed to load mock items: ${res.status}</div>`;
+					}
+					if (generateBtn) generateBtn.disabled = false;
+					return;
+				}
+				const data = await res.json();
+				items = Array.isArray(data?.items) ? data.items : [];
+				advancedMockItemsCache = items;
+			}
+			args.items = items;
 		}
-		args.items = items;
 	}
 
 	const imagePanel = document.getElementById('generationImageColumn');
