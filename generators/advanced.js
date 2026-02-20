@@ -110,6 +110,8 @@ No new focal points.
 No new elements.
 No additional characters.
 No compositional changes to the subject.
+If the image does not include menus or UI elements, do not include them in the extended image.
+We really don't want desktop menus or UI elements in the extended image unless they are part of the original image.
 
 AVOID: text, captions, logos, watermarks, signatures, frames, borders, UI elements, dramatic lighting shifts, style changes.
 `;
