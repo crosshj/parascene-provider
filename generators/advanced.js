@@ -98,8 +98,21 @@ export async function generateFluxProOutpaint1024To169(args = {}) {
 
 	const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
 	
-	const infillPromptDefault = 'Extend the scene naturally to a widescreen composition; match lighting, perspective, and style; do not change the central subject.  Do not include signatures, watermarks, or other text unless it is part of the original image.'
-	const infillPromptDefault2 = 'seamless extension of the scene, same style and quality'
+	const infillPromptDefault = `
+Outpaint only the transparent/masked areas to extend the existing image to widescreen (16:9).
+Preserve the original image exactly as-is; do not alter, restyle, recolor, or reposition the central subject.
+
+Continue the environment logically beyond the current borders.
+Match perspective, horizon line, depth, lighting direction, color temperature, texture detail, noise level, and rendering quality.
+Maintain consistent camera distance and lens characteristics.
+
+No new focal points.
+No new elements.
+No additional characters.
+No compositional changes to the subject.
+
+AVOID: text, captions, logos, watermarks, signatures, frames, borders, UI elements, dramatic lighting shifts, style changes.
+`;
 	const result = await fluxFillRequest({
 		image: compositeWithAlpha.toString('base64'),
 		prompt: prompt || infillPromptDefault,
