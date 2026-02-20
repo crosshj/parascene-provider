@@ -359,9 +359,10 @@ export default async function handler(req, res) {
 			return sendImageResponse(res, result, credits);
 		} catch (error) {
 			console.error('Error generating image:', error);
+			const message = error?.message || String(error);
 			return res.status(500).json({
-				error: 'Failed to generate image',
-				message: error.message,
+				error: message || 'Failed to generate image',
+				message,
 			});
 		}
 	}
