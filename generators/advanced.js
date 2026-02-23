@@ -1,17 +1,25 @@
 import sharp from 'sharp';
-import { generateFluxImage, fluxFillRequest } from './flux.js';
+import { generateFluxImage, fluxFillRequest, flux } from './flux.js';
 import { makeFluxPrompt } from './openai.js';
 import { fetchImageBuffer } from './utils.js';
 
 /** Credits per advanced operation. */
 const ADVANCED_GENERATE_CREDITS = 3;
+const ADVANCED_GENERATE_256_CREDITS = 3;
 const ADVANCED_OUTPAINT_CREDITS = 7;
 
 /** Response for advanced_query: support and cost depend on requested operation. */
 export function getAdvancedQueryResponse(body) {
 	console.log('getAdvancedQueryResponse', body);
-	const operation = body?.args?.operation === 'outpaint' ? 'outpaint' : 'generate';
-	const cost = operation === 'outpaint' ? ADVANCED_OUTPAINT_CREDITS : ADVANCED_GENERATE_CREDITS;
+	const op = body?.args?.operation;
+	const operation =
+		op === 'outpaint' ? 'outpaint' : op === 'generate_thumb' ? 'generate_thumb' : 'generate';
+	const cost =
+		operation === 'outpaint'
+			? ADVANCED_OUTPAINT_CREDITS
+			: operation === 'generate_thumb'
+				? ADVANCED_GENERATE_256_CREDITS
+				: ADVANCED_GENERATE_CREDITS;
 	// TODO: will want to be honest about the cost and support based on the query
 	return { supported: true, cost };
 }
@@ -97,7 +105,7 @@ export async function generateFluxProOutpaint1024To169(args = {}) {
 		.toBuffer();
 
 	const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
-	
+
 	const infillPromptDefault = `
 Outpaint only the transparent/masked areas to extend the existing image to widescreen (16:9).
 Preserve the original image exactly as-is; do not alter, restyle, recolor, or reposition the central subject.
@@ -131,6 +139,7 @@ AVOID: text, captions, logos, watermarks, signatures, frames, borders, UI elemen
 /**
  * Generate image for advanced_generate. Dispatches by args.operation:
  * - outpaint: 1024×1024 → 16:9 (1824×1024) via Flux Pro Fill (args.image_url, optional args.prompt).
+ * - generate_thumb: items + optional prompt → Flux 2 Pro at 999×999 (just under 1MP).
  * - generate (default): items + optional prompt → Flux 2 Pro.
  */
 export async function generateAdvancedImage(body) {
@@ -150,6 +159,15 @@ export async function generateAdvancedImage(body) {
 
 	const input = { items };
 	if (userPrompt) input.prompt = userPrompt;
+
+	if (args.operation === 'generate_thumb') {
+		const result = await flux(userPrompt, {
+			model: 'flux2Pro',
+			width: 1000,
+			height: 1000,
+		});
+		return { ...result, credits: ADVANCED_GENERATE_256_CREDITS };
+	}
 
 	const fluxPrompt = await makeFluxPrompt(input);
 	if (!fluxPrompt) {

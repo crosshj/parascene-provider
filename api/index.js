@@ -13,6 +13,7 @@ import {
 	getAdvancedQueryResponse,
 	generateAdvancedImage,
 } from '../generators/advanced.js';
+import { generateReplicateImage } from '../generators/replicate.js';
 import { exampleItems } from '../test/fixtures/advanced.items.js';
 
 function validateAuth(req) {
@@ -191,6 +192,31 @@ const generationMethods = {
 			},
 		},
 	},
+	replicate: {
+		name: 'Replicate',
+		description:
+			'Run a Replicate image generation model.',
+		intent: 'image_generate',
+		credits: 0,
+		fields: {
+			model: {
+				label: 'Model',
+				type: 'text',
+				required: true,
+				default: 'luma/photon',
+			},
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+			input: {
+				label: 'Input (JSON)',
+				type: 'json-object',
+				required: true,
+			},
+		},
+	},
 	// fluxPoeticImage: {
 	// 	name: 'Poetic Image (Zydeco + Flux)',
 	// 	description:
@@ -260,6 +286,7 @@ const methodHandlers = {
 	retroDiffusionImage: generateRetroDiffusionImage,
 	pixelLabImage: generatePixelLabImage,
 	uploadImage,
+	replicate: generateReplicateImage,
 };
 
 export default async function handler(req, res) {
@@ -328,7 +355,7 @@ export default async function handler(req, res) {
 			}
 
 			const methodDef = generationMethods[body.method];
-			const args = body.args || {};
+			let args = body.args || {};
 
 			const fields = methodDef.fields || {};
 			const missingFields = [];
@@ -344,6 +371,36 @@ export default async function handler(req, res) {
 					method: body.method,
 					missing_fields: missingFields,
 				});
+			}
+
+			// Replicate: pull model and prompt from fields; merge optional args (JSON) into payload
+			if (body.method === 'replicate') {
+				const model = (args.model ?? '').toString().trim();
+				const prompt = (args.prompt ?? '').toString().trim();
+				if (!model) {
+					return res.status(400).json({ error: 'Replicate model is required' });
+				}
+				if (!prompt) {
+					return res.status(400).json({ error: 'Replicate prompt is required' });
+				}
+				let extra = {};
+				const inputRaw = args.input;
+				if (typeof inputRaw === 'string' && inputRaw.trim()) {
+					try {
+						const parsed = JSON.parse(inputRaw);
+						if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+							extra = parsed;
+						}
+					} catch (parseError) {
+						return res.status(400).json({
+							error: 'Invalid JSON in Replicate input',
+							message: parseError.message,
+						});
+					}
+				} else if (inputRaw != null && typeof inputRaw === 'object' && !Array.isArray(inputRaw)) {
+					extra = inputRaw;
+				}
+				args = { model, prompt, ...extra };
 			}
 
 			const generator = methodHandlers[body.method];

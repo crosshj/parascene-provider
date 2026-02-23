@@ -21,6 +21,7 @@ const SPECIAL_METHODS = {
 				default: 'generate',
 				options: [
 					{ value: 'generate', label: 'Generate from items (Flux 2 Pro)' },
+					{ value: 'generate_thumb', label: 'Generate 999×999 (Flux 2 Pro)' },
 					{ value: 'outpaint', label: 'Outpaint 1024→16:9 (Flux Pro Fill)' },
 				],
 			},
@@ -40,6 +41,17 @@ const SPECIAL_METHODS = {
 
 const CONTROLS_STORAGE_KEY = 'parascene_generation_controls';
 let _currentMethodKey = null;
+
+/** Defaults for Replicate method in the test harness (not from API). */
+const REPLICATE_DEFAULTS = {
+	model: 'luma/photon',
+	prompt: 'A lone knight stands upon a battlefield drowned in silence, his armor scarred and his blade heavy with blood. From the corpses of his slain foes rise shadowy spirits—vengeful shades that coil and writhe like living smoke. Their hollow eyes burn with hatred, their twisted forms clawing at the knight, covering him in a shroud of darkness. The air trembles with their whispers of vengeance, a chorus of rage that binds him to the weight of his triumph. Lightning splits the storm-choked sky, illuminating the knight as both conqueror and cursed, a figure draped in the wrathful shadows of the souls he has condemned.',
+	input: `{
+  "aspect_ratio": "1:1",
+  "image_reference_weight": 0.85,
+  "style_reference_weight": 0.85
+}`,
+};
 
 function loadGenerationControls() {
 	try {
@@ -83,7 +95,7 @@ function saveGenerationControls() {
 	state.methods[methodKey] = getCurrentFieldValues(methodKey);
 	try {
 		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
-	} catch {}
+	} catch { }
 }
 
 function saveCurrentMethodStateToStorage() {
@@ -93,7 +105,7 @@ function saveCurrentMethodStateToStorage() {
 	state.methods[_currentMethodKey] = getCurrentFieldValues(_currentMethodKey);
 	try {
 		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
-	} catch {}
+	} catch { }
 }
 
 // Load saved token on page load
@@ -222,9 +234,9 @@ function updateMethodFields() {
 			formGroup.appendChild(label);
 
 			let input;
-			if (fieldDef.type === 'text') {
+			if (fieldDef.type === 'text' || fieldDef.type === 'json-object') {
 				input = document.createElement('textarea');
-				input.rows = 3;
+				input.rows = fieldDef.type === 'json-object' ? 6 : 3;
 			} else if (fieldDef.type === 'url') {
 				input = document.createElement('input');
 				input.type = 'url';
@@ -262,7 +274,7 @@ function updateMethodFields() {
 			if (fieldDef.type !== 'select' && fieldDef.type !== 'boolean') {
 				input.placeholder = fieldDef.required ? 'Required' : 'Optional';
 			}
-			// Restore saved value for this method
+			// Restore saved value for this method, or apply default for text/textarea/json-object
 			const saved = loadGenerationControls();
 			const savedForMethod = saved.methods?.[methodKey];
 			if (savedForMethod && fieldName in savedForMethod) {
@@ -272,6 +284,14 @@ function updateMethodFields() {
 				} else if (savedForMethod[fieldName] !== '') {
 					input.value = savedForMethod[fieldName];
 				}
+			} else if (
+				(fieldDef.type === 'text' || fieldDef.type === 'url' || fieldDef.type === 'json-object') &&
+				fieldDef.default != null &&
+				fieldDef.default !== ''
+			) {
+				input.value = typeof fieldDef.default === 'string' ? fieldDef.default : JSON.stringify(fieldDef.default, null, 2);
+			} else if (methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
+				input.value = typeof REPLICATE_DEFAULTS[fieldName] === 'string' ? REPLICATE_DEFAULTS[fieldName] : JSON.stringify(REPLICATE_DEFAULTS[fieldName], null, 2);
 			}
 			input.addEventListener('change', saveGenerationControls);
 			input.addEventListener('input', saveGenerationControls);
@@ -350,7 +370,7 @@ async function generateImage() {
 		}
 		return;
 	}
-	const args = {};
+	let args = {};
 	const fieldsContainer = document.getElementById('methodFields');
 
 	// Collect field values from inputs in the method form (by id or name so we always find them)
