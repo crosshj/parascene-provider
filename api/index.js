@@ -197,12 +197,12 @@ const generationMethods = {
 		description:
 			'Run a Replicate image generation model.',
 		intent: 'image_generate',
-		credits: 0,
+		credits: 3,
 		fields: {
 			model: {
 				label: 'Model',
 				type: 'text',
-				required: true,
+				required: false,
 				default: 'luma/photon',
 			},
 			prompt: {
@@ -213,7 +213,8 @@ const generationMethods = {
 			input: {
 				label: 'Input (JSON)',
 				type: 'json-object',
-				required: true,
+				required: false,
+				default: JSON.stringify({ aspect_ratio: '1:1' }, null, 2),
 			},
 		},
 	},

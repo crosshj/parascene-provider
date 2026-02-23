@@ -46,11 +46,7 @@ let _currentMethodKey = null;
 const REPLICATE_DEFAULTS = {
 	model: 'luma/photon',
 	prompt: 'A lone knight stands upon a battlefield drowned in silence, his armor scarred and his blade heavy with blood. From the corpses of his slain foes rise shadowy spirits—vengeful shades that coil and writhe like living smoke. Their hollow eyes burn with hatred, their twisted forms clawing at the knight, covering him in a shroud of darkness. The air trembles with their whispers of vengeance, a chorus of rage that binds him to the weight of his triumph. Lightning splits the storm-choked sky, illuminating the knight as both conqueror and cursed, a figure draped in the wrathful shadows of the souls he has condemned.',
-	input: `{
-  "aspect_ratio": "1:1",
-  "image_reference_weight": 0.85,
-  "style_reference_weight": 0.85
-}`,
+	input: `{   "aspect_ratio": "1:1"  }`,
 };
 
 function loadGenerationControls() {
