@@ -42,11 +42,9 @@ const SPECIAL_METHODS = {
 const CONTROLS_STORAGE_KEY = 'parascene_generation_controls';
 let _currentMethodKey = null;
 
-/** Defaults for Replicate method in the test harness (not from API). */
+/** Defaults for Replicate method in the test harness when not provided by API (e.g. prompt has no default in generationMethods). */
 const REPLICATE_DEFAULTS = {
-	model: 'luma/photon',
 	prompt: 'A lone knight stands upon a battlefield drowned in silence, his armor scarred and his blade heavy with blood. From the corpses of his slain foes rise shadowy spirits—vengeful shades that coil and writhe like living smoke. Their hollow eyes burn with hatred, their twisted forms clawing at the knight, covering him in a shroud of darkness. The air trembles with their whispers of vengeance, a chorus of rage that binds him to the weight of his triumph. Lightning splits the storm-choked sky, illuminating the knight as both conqueror and cursed, a figure draped in the wrathful shadows of the souls he has condemned.',
-	input: `{   "aspect_ratio": "1:1"  }`,
 };
 
 function loadGenerationControls() {
@@ -232,7 +230,8 @@ function updateMethodFields() {
 			let input;
 			if (fieldDef.type === 'text' || fieldDef.type === 'json-object') {
 				input = document.createElement('textarea');
-				input.rows = fieldDef.type === 'json-object' ? 6 : 3;
+				const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
+				input.rows = isJsonField ? 6 : 3;
 			} else if (fieldDef.type === 'url') {
 				input = document.createElement('input');
 				input.type = 'url';
@@ -256,6 +255,8 @@ function updateMethodFields() {
 				}
 				if (fieldDef.default != null && fieldDef.default !== '') {
 					input.value = String(fieldDef.default);
+				} else if (options.length > 0) {
+					input.value = String(options[0].value);
 				}
 			} else if (fieldDef.type === 'boolean') {
 				input = document.createElement('input');
@@ -277,17 +278,15 @@ function updateMethodFields() {
 				if (fieldDef.type === 'boolean') {
 					const v = savedForMethod[fieldName];
 					input.checked = v === true || v === 'true';
-				} else if (savedForMethod[fieldName] !== '') {
+				} else if (savedForMethod[fieldName] !== '' && savedForMethod[fieldName] != null) {
 					input.value = savedForMethod[fieldName];
 				}
-			} else if (
-				(fieldDef.type === 'text' || fieldDef.type === 'url' || fieldDef.type === 'json-object') &&
-				fieldDef.default != null &&
-				fieldDef.default !== ''
-			) {
+			}
+			// Apply default when value is still empty (no saved value, or saved was empty)
+			if ((input.value === '' || input.value === undefined) && (fieldDef.type === 'text' || fieldDef.type === 'url' || fieldDef.type === 'json-object') && fieldDef.default != null && fieldDef.default !== '') {
 				input.value = typeof fieldDef.default === 'string' ? fieldDef.default : JSON.stringify(fieldDef.default, null, 2);
-			} else if (methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
-				input.value = typeof REPLICATE_DEFAULTS[fieldName] === 'string' ? REPLICATE_DEFAULTS[fieldName] : JSON.stringify(REPLICATE_DEFAULTS[fieldName], null, 2);
+			} else if ((input.value === '' || input.value === undefined) && methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
+				input.value = String(REPLICATE_DEFAULTS[fieldName]);
 			}
 			input.addEventListener('change', saveGenerationControls);
 			input.addEventListener('input', saveGenerationControls);

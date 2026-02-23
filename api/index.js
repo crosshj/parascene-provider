@@ -201,9 +201,12 @@ const generationMethods = {
 		fields: {
 			model: {
 				label: 'Model',
-				type: 'text',
-				required: false,
-				default: 'luma/photon',
+				type: 'select',
+				required: true,
+				options: [
+					{ label: 'Luma Photon', value: 'luma/photon' },
+					// { label: 'DreamShaper 8', value: 'dreamshaper/dreamshaper_8_pruned:fp16' },
+				]
 			},
 			prompt: {
 				label: 'Prompt',
@@ -212,8 +215,8 @@ const generationMethods = {
 			},
 			input: {
 				label: 'Input (JSON)',
-				type: 'json-object',
-				required: false,
+				type: 'text',
+				required: true,
 				default: JSON.stringify({ aspect_ratio: '1:1' }, null, 2),
 			},
 		},
@@ -359,6 +362,12 @@ export default async function handler(req, res) {
 			let args = body.args || {};
 
 			const fields = methodDef.fields || {};
+			for (const [fieldName, fieldDef] of Object.entries(fields)) {
+				if (!(fieldName in args) && fieldDef.default !== undefined) {
+					args[fieldName] = fieldDef.default;
+				}
+			}
+
 			const missingFields = [];
 			for (const [fieldName, fieldDef] of Object.entries(fields)) {
 				if (fieldDef.required && !(fieldName in args)) {
