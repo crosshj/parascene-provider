@@ -166,9 +166,20 @@ const generationMethods = {
 				type: 'select',
 				required: true,
 				options: [
+					// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
+					// { label: 'Google Nano Banana Pro', value: 'google/nano-banana-pro' }, // 0.15 credits
+					{ label: 'Google Nano Banana', value: 'google/nano-banana' },
+					{ label: 'BFL Flux 2 Pro', value: 'black-forest-labs/flux-2-pro' },
+					{ label: 'ByteDance Seedream 4', value: 'bytedance/seedream-4' },
+					{ label: 'PrunaAI P-Image', value: 'prunaai/p-image' },
+					{ label: 'PrunaAI Z-Image Turbo', value: 'prunaai/z-image-turbo' },
+					{ label: 'Qwen Image', value: 'qwen/qwen-image' },
+					{ label: 'X.ai Grok Imagine Image', value: 'xai/grok-imagine-image' },
+					{ label: 'Leonardo AI Lucid Origin', value: 'leonardoai/lucid-origin' },
 					{ label: 'Luma Photon', value: 'luma/photon' },
-					// { label: 'DreamShaper 8', value: 'dreamshaper/dreamshaper_8_pruned:fp16' },
-					{ label: 'PrunaAI p-image', value: 'prunaai/p-image' },
+					// { label: 'PrunaAI HiDream L1 Fast', value: 'prunaai/hidream-l1-fast' },
+					// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
+					// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
 				]
 			},
 			prompt: {
@@ -182,7 +193,16 @@ const generationMethods = {
 				required: true,
 				default: JSON.stringify({
 					aspect_ratio: '1:1',
+					size: "1K",
+					resolution: "1 MP", // flux 2 pro
+					// resolution: "1K", // nano banana pro
+					// resolution: "1024 × 1024 (Square)", // HiDream L1 Fast
+					// width: 1024,
+					// height: 1024,
+					safety_filter_level: "block_only_high",
+					safety_tolerance: 5,
 					disable_safety_checker: true,
+					moderation: "low",
 				}, null, 2),
 			},
 		},
