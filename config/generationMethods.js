@@ -177,6 +177,11 @@ const generationMethods = {
 					{ label: 'X.ai Grok Imagine Image', value: 'xai/grok-imagine-image' },
 					{ label: 'Leonardo AI Lucid Origin', value: 'leonardoai/lucid-origin' },
 					{ label: 'Luma Photon', value: 'luma/photon' },
+					{ label: 'MiniMax Image 01', value: 'minimax/image-01' },
+					
+					// { label: 'Stability AI Stable Diffusion 3', value: 'stability-ai/stable-diffusion-3' },
+					{ label: 'ByteDance SDXL Lightning 4-step', value: 'bytedance/sdxl-lightning-4step:6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe' },
+					{ label: 'Stability AI Stable Diffusion XL', value: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc' },
 					// { label: 'PrunaAI HiDream L1 Fast', value: 'prunaai/hidream-l1-fast' },
 					// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
 					// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
@@ -192,8 +197,10 @@ const generationMethods = {
 				type: 'text',
 				required: true,
 				default: JSON.stringify({
+					seed: Math.floor(Math.random() * 1000000),
 					aspect_ratio: '1:1',
 					size: "1K",
+					negative_prompt: "worst quality, low quality, frame, border, signature, watermark",
 					resolution: "1 MP", // flux 2 pro
 					// resolution: "1K", // nano banana pro
 					// resolution: "1024 × 1024 (Square)", // HiDream L1 Fast
