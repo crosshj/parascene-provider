@@ -204,6 +204,7 @@ const generationMethods = {
 				label: 'Input (JSON)',
 				type: 'text',
 				required: true,
+				hidden: true,
 				default: JSON.stringify(
 					{
 						seed: Math.floor(Math.random() * 1000000),
