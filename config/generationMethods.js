@@ -152,6 +152,7 @@ const generationMethods = {
 		},
 	},
 	replicate: {
+		default: true,
 		name: 'Replicate',
 		description: 'Run a Replicate image generation model.',
 		intent: 'image_generate',
