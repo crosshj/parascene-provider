@@ -21,10 +21,16 @@ function getFirstImageUrl(output) {
 		const u = first.url();
 		return typeof u === 'string' ? u : String(u?.href ?? u);
 	}
-	if (typeof first.toString === 'function' && (first.toString() || '').startsWith('http')) {
+	if (
+		typeof first.toString === 'function' &&
+		(first.toString() || '').startsWith('http')
+	) {
 		return first.toString();
 	}
-	if (typeof first === 'string' && (first.startsWith('http') || first.startsWith('data:'))) {
+	if (
+		typeof first === 'string' &&
+		(first.startsWith('http') || first.startsWith('data:'))
+	) {
 		return first;
 	}
 	if (first && typeof first === 'object' && typeof first.url === 'string') {
@@ -48,16 +54,23 @@ export async function generateReplicateImage(args = {}) {
 
 	const model = args?.model;
 	if (!model || typeof model !== 'string' || !model.trim()) {
-		throw new Error('Replicate args must include a non-empty model (e.g. "owner/model" or "owner/model:version")');
+		throw new Error(
+			'Replicate args must include a non-empty model (e.g. "owner/model" or "owner/model:version")'
+		);
 	}
 
-	const input =
-		args.input != null && typeof args.input === 'object' && !Array.isArray(args.input)
+	let input =
+		args.input != null &&
+		typeof args.input === 'object' &&
+		!Array.isArray(args.input)
 			? args.input
 			: (() => {
 					const { model: _m, ...rest } = args;
 					return rest;
 				})();
+	if (model.startsWith('recraft')) {
+		input.size = '1024x1024';
+	}
 
 	const replicate = new Replicate({ auth: token });
 

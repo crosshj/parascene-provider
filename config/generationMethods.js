@@ -178,6 +178,7 @@ const generationMethods = {
 					},
 					{ label: 'Luma Photon', value: 'luma/photon' },
 					{ label: 'MiniMax Image 01', value: 'minimax/image-01' },
+					{ label: 'Recraft V4', value: 'recraft-ai/recraft-v4' },
 
 					// { label: 'Stability AI Stable Diffusion 3', value: 'stability-ai/stable-diffusion-3' },
 					{
