@@ -214,7 +214,7 @@ const generationMethods = {
 				hidden: true,
 			},
 			image: {
-				label: 'Image URL',
+				label: 'Image',
 				type: 'image_url',
 				required: false,
 				hidden: true,

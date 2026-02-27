@@ -144,9 +144,11 @@ export default async function handler(req, res) {
 					extra = inputRaw;
 				}
 				const inputImages = args.input_images;
+				const imageInput = args.image_input;
 				const image = args.image;
 				args = { model, prompt, ...extra };
 				if (inputImages != null) args.input_images = inputImages;
+				if (imageInput != null) args.image_input = imageInput;
 				if (image != null) args.image = image;
 			}
 
