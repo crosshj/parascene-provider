@@ -202,7 +202,7 @@ const generationMethods = {
 				required: true,
 			},
 			input_images: {
-				label: 'Input Images',
+				label: 'Image URL (Array)',
 				type: 'image_url_array',
 				required: false,
 				hidden: true,
