@@ -116,7 +116,7 @@ export default async function handler(req, res) {
 				});
 			}
 
-			// Replicate: pull model and prompt from fields; merge optional args (JSON) into payload
+			// Replicate: pull model and prompt from fields; merge optional args (JSON) into payload; pass through image fields
 			if (body.method === 'replicate') {
 				const model = (args.model ?? '').toString().trim();
 				const prompt = (args.prompt ?? '').toString().trim();
@@ -143,7 +143,11 @@ export default async function handler(req, res) {
 				} else if (inputRaw != null && typeof inputRaw === 'object' && !Array.isArray(inputRaw)) {
 					extra = inputRaw;
 				}
+				const inputImages = args.input_images;
+				const image = args.image;
 				args = { model, prompt, ...extra };
+				if (inputImages != null) args.input_images = inputImages;
+				if (image != null) args.image = image;
 			}
 
 			const generator = methodHandlers[body.method];

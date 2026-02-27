@@ -165,32 +165,32 @@ const generationMethods = {
 				options: [
 					// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
 					// { label: 'Google Nano Banana Pro', value: 'google/nano-banana-pro' }, // 0.15 credits
-					{ label: 'Google Nano Banana', value: 'google/nano-banana' },
-					{ label: 'BFL Flux 2 Pro', value: 'black-forest-labs/flux-2-pro' },
-					{ label: 'ByteDance Seedream 4', value: 'bytedance/seedream-4' },
-					{ label: 'PrunaAI P-Image', value: 'prunaai/p-image' },
-					{ label: 'PrunaAI Z-Image Turbo', value: 'prunaai/z-image-turbo' },
-					{ label: 'Qwen Image', value: 'qwen/qwen-image' },
-					{ label: 'X.ai Grok Imagine Image', value: 'xai/grok-imagine-image' },
+					{ label: 'Google Nano Banana', value: 'google/nano-banana' }, //input_images - file[]
+					{ label: 'BFL Flux 2 Pro', value: 'black-forest-labs/flux-2-pro' },  //input_images - file[]
+					{ label: 'ByteDance Seedream 4', value: 'bytedance/seedream-4' }, //image_input - file[]
+					{ label: 'PrunaAI P-Image', value: 'prunaai/p-image' }, //no image input
+					{ label: 'PrunaAI Z-Image Turbo', value: 'prunaai/z-image-turbo' }, //no image input
+					{ label: 'Qwen Image', value: 'qwen/qwen-image' }, //image - file 
+					{ label: 'X.ai Grok Imagine Image', value: 'xai/grok-imagine-image' },  //image - file
 					{
 						label: 'Leonardo AI Lucid Origin',
 						value: 'leonardoai/lucid-origin',
-					},
-					{ label: 'Luma Photon', value: 'luma/photon' },
-					{ label: 'MiniMax Image 01', value: 'minimax/image-01' },
-					{ label: 'Recraft V4', value: 'recraft-ai/recraft-v4' },
+					}, //no image input
+					{ label: 'Luma Photon', value: 'luma/photon' }, //image_reference, style_reference, character_reference - file
+					{ label: 'MiniMax Image 01', value: 'minimax/image-01' }, //subject_reference - file
+					{ label: 'Recraft V4', value: 'recraft-ai/recraft-v4' }, //no image input
 
 					// { label: 'Stability AI Stable Diffusion 3', value: 'stability-ai/stable-diffusion-3' },
 					{
 						label: 'ByteDance SDXL Lightning 4-step',
 						value:
 							'bytedance/sdxl-lightning-4step:6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe',
-					},
+					}, //no image input
 					{
 						label: 'Stability AI Stable Diffusion XL',
 						value:
 							'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
-					},
+					}, //image, mask - file
 					// { label: 'PrunaAI HiDream L1 Fast', value: 'prunaai/hidream-l1-fast' },
 					// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
 					// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
@@ -200,6 +200,18 @@ const generationMethods = {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
+			},
+			input_images: {
+				label: 'Input Images',
+				type: 'image_url_array',
+				required: false,
+				hidden: true,
+			},
+			image: {
+				label: 'Image URL',
+				type: 'image_url',
+				required: false,
+				hidden: true,
 			},
 			input: {
 				label: 'Input (JSON)',
