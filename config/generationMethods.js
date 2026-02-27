@@ -165,7 +165,7 @@ const generationMethods = {
 				options: [
 					// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
 					// { label: 'Google Nano Banana Pro', value: 'google/nano-banana-pro' }, // 0.15 credits
-					{ label: 'Google Nano Banana', value: 'google/nano-banana' }, //input_images - file[]
+					{ label: 'Google Nano Banana', value: 'google/nano-banana' }, //image_input - file[]
 					{ label: 'BFL Flux 2 Pro', value: 'black-forest-labs/flux-2-pro' },  //input_images - file[]
 					{ label: 'ByteDance Seedream 4', value: 'bytedance/seedream-4' }, //image_input - file[]
 					{ label: 'PrunaAI P-Image', value: 'prunaai/p-image' }, //no image input
@@ -202,7 +202,13 @@ const generationMethods = {
 				required: true,
 			},
 			input_images: {
-				label: 'Image URL (Array)',
+				label: 'Input Images []',
+				type: 'image_url_array',
+				required: false,
+				hidden: true,
+			},
+			image_input: {
+				label: 'Image Input []',
 				type: 'image_url_array',
 				required: false,
 				hidden: true,
