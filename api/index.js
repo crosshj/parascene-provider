@@ -123,7 +123,7 @@ export default async function handler(req, res) {
 				});
 			}
 
-			const result = await generator(args);
+			const result = await generator({ ...args, _method: body.method });
 			const credits =
 				typeof methodDef.credits === 'number' ? methodDef.credits : 0;
 			return sendImageResponse(res, result, credits);

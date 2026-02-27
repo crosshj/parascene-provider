@@ -29,28 +29,69 @@ const randomSeed = () => Math.floor(Math.random() * 1000000);
 
 const modelArgsAdapters = {
 	// multiple image input
+	'black-forest-labs/flux-2-max': (args) => (xfrm.arrNamed('input_images')({
+		...args,
+		"resolution": "1 MP",
+		"aspect_ratio": "1:1",
+		"output_format": "png",
+		"safety_tolerance": 5
+	})),
+	'black-forest-labs/flux-2-pro': (args, ctx) => (ctx?.method === 'replicatePro'
+		// multiple image input mode (expensive)
+		? xfrm.arrNamed('input_images')({
+			...args,
+			"resolution": "1 MP",
+			"aspect_ratio": "1:1",
+			"output_format": "png",
+			"safety_tolerance": 5
+		})
+		// generate & single image input mode (cheaper)
+		: ({
+			...args,
+			input_images: [args.input_images?.[0]],
+			"resolution": "1 MP",
+			"aspect_ratio": "1:1",
+			"output_format": "png",
+			"safety_tolerance": 5
+		})),
+	'google/nano-banana-2': (args) => xfrm.arrNamed('image_input')({
+		...args,
+		"aspect_ratio": "1:1",
+		"resolution": "1K",
+		"output_format": "png",
+		"image_search": true,
+		"google_search": true,
+		"output_format": "png",
+		// no support for disable_safety_checker
+	}),
+	'google/nano-banana-pro': (args) => xfrm.arrNamed('image_input')({
+		...args,
+		"aspect_ratio": "1:1",
+		"resolution": "1K",
+		"output_format": "png",
+		"allow_fallback_model": false,
+		"safety_filter_level": "block_only_high",
+	}),
+	'openai/gpt-image-1.5': (args) => xfrm.arrNamed('input_images')({
+		...args,
+		"quality": "high",
+		"background": "opaque",
+		"aspect_ratio": "1:1",
+		"output_format": "png",
+		"input_fidelity": "high",
+		"number_of_images": 1,
+		"output_compression": 90,
+		"moderation": "low",
+	}),
+	// END PRO MODELS
+
 	'google/nano-banana': (args) => xfrm.arrNamed('image_input')({
 		...args,
 		"aspect_ratio": "1:1",
 		"output_format": "png"
 		// no support for disable_safety_checker
 	}),
-	// 'black-forest-labs/flux-2-pro': (args) => xfrm.arrNamed('input_images')({
-	// 	...args,
-	// 	"resolution": "1 MP",
-	// 	"aspect_ratio": "1:1",
-	// 	"output_format": "png",
-	// 	// "output_quality": 100,
-	// 	"safety_tolerance": 5
-	// }),
-	'black-forest-labs/flux-2-pro': (args) => xfrm.noImg({
-		...args,
-		"resolution": "1 MP",
-		"aspect_ratio": "1:1",
-		"output_format": "png",
-		// "output_quality": 100,
-		"safety_tolerance": 5
-	}),
+
 	'bytedance/seedream-4': (args) => xfrm.arrNamed('image_input')({
 		...args,
 		"size": "1K",
@@ -250,8 +291,12 @@ function getFirstImageUrl(output) {
  * @returns {Promise<{ buffer: Buffer, width: number, height: number }>}
  */
 export async function generateReplicateImage(args = {}) {
-	const model = (args.model ?? '').toString().trim();
-	const prompt = (args.prompt ?? '').toString().trim();
+	const { _method, ...restArgs } = args;
+	const method = _method === 'replicatePro' ? 'replicatePro' : 'replicate';
+	const ctx = { method };
+
+	const model = (restArgs.model ?? '').toString().trim();
+	const prompt = (restArgs.prompt ?? '').toString().trim();
 	if (!model) throw new Error('Replicate model is required');
 	if (!prompt) throw new Error('Replicate prompt is required');
 
@@ -260,13 +305,25 @@ export async function generateReplicateImage(args = {}) {
 		throw new Error('REPLICATE_API_TOKEN is not set');
 	}
 
-	const { model: _model, prompt: _prompt, ...rest } = args;
-	let input = { prompt, ...rest };
-
 	const baseModel = model.split(':')[0];
+	if (
+		baseModel === 'black-forest-labs/flux-2-pro' &&
+		method === 'replicatePro' &&
+		!restArgs.input_images?.length
+	) {
+		throw new Error(
+			'Include at least one input image. Add input images or use the standard Replicate Flux 2 Pro model.'
+		);
+	}
+
+	const { model: _model, prompt: _prompt, ...rest } = restArgs;
+	let input = { prompt, ...rest };
 	const adapter = modelArgsAdapters[baseModel];
 	if (adapter) {
-		input = adapter(input);
+		input = adapter(input, ctx);
+	}
+	if (Object.prototype.hasOwnProperty.call(input, '_method')) {
+		delete input._method;
 	}
 
 	const replicate = new Replicate({ auth: token });

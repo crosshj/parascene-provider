@@ -41,7 +41,7 @@ const replicateModels = [
 	{
 		label: 'BFL Flux 2 Pro',
 		value: 'black-forest-labs/flux-2-pro',
-		hint: 'No input image support (too expensive).'
+		hint: 'Supports single image input.'
 	},
 	{
 		label: 'ByteDance Seedream 4',
@@ -101,6 +101,34 @@ const replicateModels = [
 	// },
 	// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
 	// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
+];
+
+const replicateProModels = [
+	{
+		label: 'Google Nano Banana 2',
+		value: 'google/nano-banana-2',
+		hint: 'Supports multiple image inputs. Premium.'
+	},
+	{
+		label: 'Google Nano Banana Pro',
+		value: 'google/nano-banana-pro',
+		hint: 'Supports multiple image inputs. Premium.'
+	},
+	{
+		label: 'OpenAI GPT-Image 1.5',
+		value: 'openai/gpt-image-1.5',
+		hint: 'Premium text-to-image.'
+	},
+	{
+		label: 'BFL Flux 2 Max',
+		value: 'black-forest-labs/flux-2-max',
+		hint: 'Supports multiple image inputs. Premium.'
+	},
+	{
+		label: 'BFL Flux 2 Pro Edit',
+		value: 'black-forest-labs/flux-2-pro',
+		hint: 'Supports multiple image inputs. Premium.'
+	},
 ];
 
 const generationMethods = {
@@ -273,6 +301,30 @@ const generationMethods = {
 			},
 		},
 	},
+	replicatePro: {
+		name: 'Replicate Pro',
+		description: 'Premium Replicate models. Higher quality, higher credits.',
+		intent: 'image_generate',
+		credits: 15,
+		fields: {
+			model: {
+				label: 'Model',
+				type: 'select',
+				required: true,
+				options: replicateProModels,
+			},
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+			input_images: {
+				label: 'Input Images',
+				type: 'image_url_array',
+				required: false,
+			},
+		},
+	},
 	// fluxPoeticImage: {
 	// 	name: 'Poetic Image (Zydeco + Flux)',
 	// 	description:
@@ -330,4 +382,4 @@ const generationMethods = {
 	// },
 };
 
-export { fluxResolutionOptions, generationMethods };
+export { fluxResolutionOptions, generationMethods, replicateModels, replicateProModels };
