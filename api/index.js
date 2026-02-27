@@ -116,42 +116,6 @@ export default async function handler(req, res) {
 				});
 			}
 
-			// Replicate: pull model and prompt from fields; merge optional args (JSON) into payload; pass through image fields
-			if (body.method === 'replicate') {
-				const model = (args.model ?? '').toString().trim();
-				const prompt = (args.prompt ?? '').toString().trim();
-				if (!model) {
-					return res.status(400).json({ error: 'Replicate model is required' });
-				}
-				if (!prompt) {
-					return res.status(400).json({ error: 'Replicate prompt is required' });
-				}
-				let extra = {};
-				const inputRaw = args.input;
-				if (typeof inputRaw === 'string' && inputRaw.trim()) {
-					try {
-						const parsed = JSON.parse(inputRaw);
-						if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
-							extra = parsed;
-						}
-					} catch (parseError) {
-						return res.status(400).json({
-							error: 'Invalid JSON in Replicate input',
-							message: parseError.message,
-						});
-					}
-				} else if (inputRaw != null && typeof inputRaw === 'object' && !Array.isArray(inputRaw)) {
-					extra = inputRaw;
-				}
-				const inputImages = args.input_images;
-				const imageInput = args.image_input;
-				const image = args.image;
-				args = { model, prompt, ...extra };
-				if (inputImages != null) args.input_images = inputImages;
-				if (imageInput != null) args.image_input = imageInput;
-				if (image != null) args.image = image;
-			}
-
 			const generator = methodHandlers[body.method];
 			if (!generator) {
 				return res.status(500).json({

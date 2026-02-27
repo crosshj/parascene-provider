@@ -226,9 +226,20 @@ function updateMethodFields() {
 			const label = document.createElement('label');
 			label.textContent = `${fieldDef.label}${fieldDef.required ? ' *' : ''}`;
 			formGroup.appendChild(label);
+			if (fieldDef.hint) {
+				const hintEl = document.createElement('span');
+				hintEl.className = 'field-hint';
+				hintEl.style.display = 'block';
+				hintEl.style.fontSize = '0.85em';
+				hintEl.style.color = '#6b7280';
+				hintEl.style.marginTop = '2px';
+				hintEl.style.marginBottom = '4px';
+				hintEl.textContent = fieldDef.hint;
+				formGroup.appendChild(hintEl);
+			}
 
 			let input;
-			if (fieldDef.type === 'text' || fieldDef.type === 'json-object') {
+			if (fieldDef.type === 'text' || fieldDef.type === 'json-object' || fieldDef.type === 'image_url_array') {
 				input = document.createElement('textarea');
 				const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
 				input.rows = isJsonField ? 6 : 3;
@@ -291,6 +302,23 @@ function updateMethodFields() {
 			input.addEventListener('change', saveGenerationControls);
 			input.addEventListener('input', saveGenerationControls);
 			formGroup.appendChild(input);
+
+			// Select with option hints: show selected option's hint under the selector
+			if (fieldDef.type === 'select' && fieldDef.options?.some((opt) => opt.hint)) {
+				const selectHint = document.createElement('span');
+				selectHint.className = 'field-hint';
+				selectHint.style.display = 'block';
+				selectHint.style.fontSize = '0.85em';
+				selectHint.style.color = '#6b7280';
+				selectHint.style.marginTop = '4px';
+				const updateSelectHint = () => {
+					const opt = fieldDef.options.find((o) => o.value === input.value);
+					selectHint.textContent = opt?.hint ?? '';
+				};
+				updateSelectHint();
+				input.addEventListener('change', updateSelectHint);
+				formGroup.appendChild(selectHint);
+			}
 
 			// Nice UX for image_url fields: show a quick preview.
 			if (fieldName === 'image_url') {
@@ -380,6 +408,26 @@ async function generateImage() {
 			args[fieldName] = input.value ? String(input.value) : String(fieldDef.default ?? '');
 		} else if (input.value) {
 			args[fieldName] = input.value;
+		}
+	}
+
+	// Normalize image_url_array fields: parse JSON into arrays
+	for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
+		if (fieldDef.type !== 'image_url_array') continue;
+		const current = args[fieldName];
+		if (typeof current !== 'string') continue;
+		const raw = current.trim();
+		if (!raw) {
+			delete args[fieldName];
+			continue;
+		}
+		try {
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				args[fieldName] = parsed;
+			}
+		} catch {
+			// leave as-is; server-side will surface JSON errors
 		}
 	}
 

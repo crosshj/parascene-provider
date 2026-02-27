@@ -6,6 +6,103 @@ const fluxResolutionOptions = [
 	{ label: 'AI Latest', value: 'ai_latest' },
 ];
 
+const replicateModels = [
+	{
+		label: 'X.ai Grok Imagine Image',
+		value: 'xai/grok-imagine-image',
+		hint: 'Supports single image input. Low censorship.'
+	},
+	{
+		label: 'PrunaAI P-Image',
+		value: 'prunaai/p-image',
+		hint: 'No input image support. Low censorship.'
+	},
+	{
+		label: 'PrunaAI P-Image Edit',
+		value: 'prunaai/p-image-edit',
+		hint: 'Supports multiple image inputs. Low censorship.'
+	},
+	{
+		label: 'Qwen Image',
+		value: 'qwen/qwen-image',
+		hint: 'No input image support. Low censorship.'
+	},
+	{
+		label: 'Qwen Image Edit',
+		value: 'qwen/qwen-image-edit',
+		hint: 'Supports single image input. Low censorship.'
+	},
+	// ---
+	{
+		label: 'Google Nano Banana (Gemini 2.5)',
+		value: 'google/nano-banana',
+		hint: 'Supports multiple image inputs.'
+	},
+	{
+		label: 'BFL Flux 2 Pro',
+		value: 'black-forest-labs/flux-2-pro',
+		hint: 'No input image support (too expensive).'
+	},
+	{
+		label: 'ByteDance Seedream 4',
+		value: 'bytedance/seedream-4',
+		hint: 'Supports multiple image inputs.'
+	},
+	{
+		label: 'PrunaAI Z-Image Turbo',
+		value: 'prunaai/z-image-turbo',
+		hint: 'No input image support.'
+	},
+	{
+		label: 'Luma Photon',
+		value: 'luma/photon',
+		hint: 'Supports multiple image inputs [reference, style, character].'
+	},
+	{
+		label: 'MiniMax Image 01',
+		value: 'minimax/image-01',
+		hint: 'Supports single image input [subject].'
+	},
+	{
+		label: 'Leonardo AI Lucid Origin',
+		value: 'leonardoai/lucid-origin',
+		hint: 'No input image support.',
+	},
+	{
+		label: 'Recraft V4',
+		value: 'recraft-ai/recraft-v4',
+		hint: 'No input image support. Low censorship.'
+	},
+
+	{
+		label: 'ByteDance SDXL Lightning 4-step',
+		value: 'bytedance/sdxl-lightning-4step:6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe',
+		hint: 'No input image support.  Low censorship.',
+	},
+	{
+		label: 'Stability AI SDXL',
+		value: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
+		hint: 'Supports multiple image inputs [image, mask].  Low censorship.',
+	},
+
+	// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
+	// { label: 'Google Nano Banana Pro', value: 'google/nano-banana-pro' }, // 0.15 credits
+
+	// 0.04 cents per gen, too expensive for what it is.
+	// {
+	// 	label: 'Stability AI SD3',
+	// 	value: 'stability-ai/stable-diffusion-3',
+	// 	hint: 'Supports single image input. Low censorship.',
+	// },
+
+	// {
+	// 	label: 'PrunaAI HiDream L1 Fast',
+	// 	value: 'prunaai/hidream-l1-fast'
+	// },
+	// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
+	// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
+];
+
 const generationMethods = {
 	fluxImage: {
 		name: 'Flux 2 Pro',
@@ -162,39 +259,7 @@ const generationMethods = {
 				label: 'Model',
 				type: 'select',
 				required: true,
-				options: [
-					// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
-					// { label: 'Google Nano Banana Pro', value: 'google/nano-banana-pro' }, // 0.15 credits
-					{ label: 'Google Nano Banana', value: 'google/nano-banana' }, //image_input - file[]
-					{ label: 'BFL Flux 2 Pro', value: 'black-forest-labs/flux-2-pro' },  //input_images - file[]
-					{ label: 'ByteDance Seedream 4', value: 'bytedance/seedream-4' }, //image_input - file[]
-					{ label: 'PrunaAI P-Image', value: 'prunaai/p-image' }, //no image input
-					{ label: 'PrunaAI Z-Image Turbo', value: 'prunaai/z-image-turbo' }, //no image input
-					{ label: 'Qwen Image', value: 'qwen/qwen-image' }, //image - file 
-					{ label: 'X.ai Grok Imagine Image', value: 'xai/grok-imagine-image' },  //image - file
-					{
-						label: 'Leonardo AI Lucid Origin',
-						value: 'leonardoai/lucid-origin',
-					}, //no image input
-					{ label: 'Luma Photon', value: 'luma/photon' }, //image_reference, style_reference, character_reference - file
-					{ label: 'MiniMax Image 01', value: 'minimax/image-01' }, //subject_reference - file
-					{ label: 'Recraft V4', value: 'recraft-ai/recraft-v4' }, //no image input
-
-					// { label: 'Stability AI Stable Diffusion 3', value: 'stability-ai/stable-diffusion-3' },
-					{
-						label: 'ByteDance SDXL Lightning 4-step',
-						value:
-							'bytedance/sdxl-lightning-4step:6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe',
-					}, //no image input
-					{
-						label: 'Stability AI Stable Diffusion XL',
-						value:
-							'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
-					}, //image, mask - file
-					// { label: 'PrunaAI HiDream L1 Fast', value: 'prunaai/hidream-l1-fast' },
-					// { label: 'DreamShaper', value: 'cjwbw/dreamshaper:ed6d8bee9a278b0d7125872bddfb9dd3fc4c401426ad634d8246a660e387475b' },
-					// { label: 'PrunaAI Flux 2 Turbo', value: 'prunaai/flux-2-turbo:e5380ce042365016bb21eed79b6900e8b36d09976df40143a39fbeb569298ae5' },
-				],
+				options: replicateModels,
 			},
 			prompt: {
 				label: 'Prompt',
@@ -202,48 +267,9 @@ const generationMethods = {
 				required: true,
 			},
 			input_images: {
-				label: 'Input Images []',
+				label: 'Input Images',
 				type: 'image_url_array',
 				required: false,
-				hidden: true,
-			},
-			image_input: {
-				label: 'Image Input []',
-				type: 'image_url_array',
-				required: false,
-				hidden: true,
-			},
-			image: {
-				label: 'Image',
-				type: 'image_url',
-				required: false,
-				hidden: true,
-			},
-			input: {
-				label: 'Input (JSON)',
-				type: 'text',
-				required: true,
-				hidden: true,
-				default: JSON.stringify(
-					{
-						seed: Math.floor(Math.random() * 1000000),
-						aspect_ratio: '1:1',
-						size: '1K',
-						negative_prompt:
-							'worst quality, low quality, frame, border, signature, watermark',
-						resolution: '1 MP', // flux 2 pro
-						// resolution: "1K", // nano banana pro
-						// resolution: "1024 × 1024 (Square)", // HiDream L1 Fast
-						// width: 1024,
-						// height: 1024,
-						safety_filter_level: 'block_only_high',
-						safety_tolerance: 5,
-						disable_safety_checker: true,
-						moderation: 'low',
-					},
-					null,
-					2
-				),
 			},
 		},
 	},
