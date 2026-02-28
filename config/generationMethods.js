@@ -117,7 +117,7 @@ const replicateProModels = [
 	{
 		label: 'OpenAI GPT-Image 1.5',
 		value: 'openai/gpt-image-1.5',
-		hint: 'Premium text-to-image.'
+		hint: 'Supports multiple image inputs. Premium.'
 	},
 	{
 		label: 'BFL Flux 2 Max',
@@ -125,9 +125,9 @@ const replicateProModels = [
 		hint: 'Supports multiple image inputs. Premium.'
 	},
 	{
-		label: 'BFL Flux 2 Pro Edit',
+		label: 'BFL Flux 2 Pro Multi-Image Edit',
 		value: 'black-forest-labs/flux-2-pro',
-		hint: 'Supports multiple image inputs. Premium.'
+		hint: 'Supports multiple image inputs.'
 	},
 ];
 
