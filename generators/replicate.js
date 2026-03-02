@@ -63,15 +63,20 @@ const modelArgsAdapters = {
 			"output_format": "png",
 			"safety_tolerance": 5
 		})
-		// generate & single image input mode (cheaper)
-		: ({
-			...args,
-			input_images: [args.input_images?.[0]],
-			"resolution": "1 MP",
-			"aspect_ratio": "1:1",
-			"output_format": "png",
-			"safety_tolerance": 5
-		})),
+		// generate & single image input mode (cheaper) — omit input_images when none provided
+		: (() => {
+			const { input_images, ...rest } = args;
+			const first = input_images?.[0];
+			const result = {
+				...rest,
+				"resolution": "1 MP",
+				"aspect_ratio": "1:1",
+				"output_format": "png",
+				"safety_tolerance": 5
+			};
+			if (first != null) result.input_images = [first];
+			return result;
+		})()),
 	'google/nano-banana-2': (args) => xfrm.arrNamed('image_input')({
 		...args,
 		"aspect_ratio": "1:1",
