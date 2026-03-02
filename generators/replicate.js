@@ -12,7 +12,7 @@ const xfrm = {
 		if (!args.input_images?.length) return args;
 		return { ...args, [outputKey]: args.input_images };
 	},
-	/** Map input_images to custom-named fields by position (one or more). */
+	/** Map input_images to custom-named fields by position (one or more). Do not send input_images to the API. */
 	imgNamed: (fieldNames) => (args) => {
 		if (!args.input_images?.length) return args;
 		const modded = { ...args };
@@ -20,6 +20,7 @@ const xfrm = {
 			const value = args.input_images[i];
 			if (value != null) modded[name] = value;
 		});
+		delete modded.input_images;
 		return modded;
 	},
 };
