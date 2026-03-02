@@ -24,6 +24,24 @@ const xfrm = {
 	},
 };
 
+/** Extract URL string from input_images element (string or { url } object). */
+function toImageUrl(val) {
+	if (val == null) return null;
+	if (typeof val === 'string') return val.trim() || null;
+	if (val && typeof val === 'object' && typeof val.url === 'string')
+		return val.url.trim() || null;
+	return null;
+}
+
+/** Normalize image to data URI with explicit format. Replicate/xai models require format; URLs without extension fail. */
+async function normalizeImageToDataUri(imageInput) {
+	const url = toImageUrl(imageInput);
+	if (!url) return null;
+	const { buffer } = await fetchImageBuffer(url);
+	const png = await sharp(buffer).png().toBuffer();
+	return `data:image/png;base64,${png.toString('base64')}`;
+}
+
 const SDXL_NEG = 'worst quality, low quality, frame, border, signature, watermark';
 const randomSeed = () => Math.floor(Math.random() * 1000000);
 
@@ -155,6 +173,7 @@ const modelArgsAdapters = {
 		// "output_quality": 100,
 		disable_safety_checker: true,
 	}),
+	// xai/grok-imagine-image requires format in URL; URLs without extension fail with "Invalid image format ''"
 	'xai/grok-imagine-image': (args) => xfrm.imgNamed(['image'])({
 		...args,
 		"aspect_ratio": "1:1",
@@ -324,6 +343,13 @@ export async function generateReplicateImage(args = {}) {
 	}
 	if (Object.prototype.hasOwnProperty.call(input, '_method')) {
 		delete input._method;
+	}
+
+	// Models that require explicit image format (Replicate infers from URL; URLs without extension fail)
+	const imageFormatStrictModels = new Set(['xai/grok-imagine-image']);
+	if (imageFormatStrictModels.has(baseModel) && input.image) {
+		const normalized = await normalizeImageToDataUri(input.image);
+		if (normalized) input = { ...input, image: normalized };
 	}
 
 	const replicate = new Replicate({ auth: token });
