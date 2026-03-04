@@ -131,6 +131,14 @@ const replicateProModels = [
 	},
 ];
 
+const replicateVideoModels = [
+	{
+		label: 'Wan Video 2.2 i2v Fast',
+		value: 'wan-video/wan-2.2-i2v-fast',
+		hint: 'Image-to-video (i2v), fast.',
+	},
+];
+
 const generationMethods = {
 	fluxImage: {
 		name: 'Flux 2 Pro',
@@ -325,6 +333,31 @@ const generationMethods = {
 			},
 		},
 	},
+	replicateVideo: {
+		name: 'Replicate Video',
+		description: 'Run a Replicate image-to-video model.',
+		intent: 'video_generate',
+		credits: 10,
+		fields: {
+			model: {
+				label: 'Model',
+				type: 'select',
+				required: true,
+				default: 'wan-video/wan-2.2-i2v-fast',
+				options: replicateVideoModels,
+			},
+			image: {
+				label: 'Image',
+				type: 'image_url',
+				required: true,
+			},
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+		},
+	},
 	// fluxPoeticImage: {
 	// 	name: 'Poetic Image (Zydeco + Flux)',
 	// 	description:
@@ -382,4 +415,10 @@ const generationMethods = {
 	// },
 };
 
-export { fluxResolutionOptions, generationMethods, replicateModels, replicateProModels };
+export {
+	fluxResolutionOptions,
+	generationMethods,
+	replicateModels,
+	replicateProModels,
+	replicateVideoModels,
+};

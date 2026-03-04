@@ -509,11 +509,23 @@ async function generateImage() {
 		}
 
 		const blob = await response.blob();
-		const imageUrl = URL.createObjectURL(blob);
+		const objectUrl = URL.createObjectURL(blob);
 
 		if (imagePanel) {
 			imagePanel.classList.add('has-content');
-			imagePanel.innerHTML = `<img id="imageResult" src="${imageUrl}" alt="Generated image" />`;
+			if (contentType.startsWith('video/')) {
+				imagePanel.innerHTML = `
+					<video
+						id="videoResult"
+						src="${objectUrl}"
+						controls
+						autoplay
+						loop
+					></video>
+				`;
+			} else {
+				imagePanel.innerHTML = `<img id="imageResult" src="${objectUrl}" alt="Generated image" />`;
+			}
 		}
 	} catch (error) {
 		if (imagePanel) {

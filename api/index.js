@@ -16,6 +16,14 @@ function validateAuth(req) {
 }
 
 function sendImageResponse(res, result, credits) {
+	if (result && result.videoBuffer) {
+		res.setHeader('Content-Type', 'video/mp4');
+		res.setHeader('Content-Length', result.videoBuffer.length);
+		res.setHeader('Cache-Control', 'no-cache');
+		res.setHeader('X-Credits', String(credits));
+		return res.send(result.videoBuffer);
+	}
+
 	res.setHeader('Content-Type', 'image/png');
 	res.setHeader('Content-Length', result.buffer.length);
 	res.setHeader('Cache-Control', 'no-cache');

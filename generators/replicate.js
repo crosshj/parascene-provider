@@ -377,3 +377,53 @@ export async function generateReplicateImage(args = {}) {
 		height,
 	};
 }
+
+/**
+ * Run a Replicate video model and return the video as a buffer.
+ * Args: model (optional, defaults to wan-video/wan-2.2-i2v-fast), prompt (required), image (required).
+ *
+ * @param {object} args - model?, prompt, image
+ * @returns {Promise<{ videoBuffer: Buffer }>}
+ */
+export async function generateReplicateVideo(args = {}) {
+	const rawModel = args.model ?? 'wan-video/wan-2.2-i2v-fast';
+	const model = rawModel.toString().trim() || 'wan-video/wan-2.2-i2v-fast';
+	const prompt = (args.prompt ?? '').toString().trim();
+	const image = (args.image ?? '').toString().trim();
+
+	if (!prompt) throw new Error('Replicate video prompt is required');
+	if (!image) throw new Error('Replicate video image is required');
+
+	const token = process.env.REPLICATE_API_TOKEN;
+	if (!token || typeof token !== 'string') {
+		throw new Error('REPLICATE_API_TOKEN is not set');
+	}
+
+	const input = {
+		image,
+		last_image: image,
+		prompt,
+		go_fast: true,
+		num_frames: 97,
+		resolution: '480p',
+		sample_shift: 12,
+		frames_per_second: 16,
+		interpolate_output: false,
+		lora_scale_transformer: 1,
+		lora_scale_transformer_2: 1,
+		disable_safety_checker: true,
+	};
+
+	const replicate = new Replicate({ auth: token });
+
+	log('Replicate video run', { model, inputKeys: Object.keys(input || {}) });
+
+	const output = await replicate.run(model, { input });
+
+	const videoUrl = getFirstImageUrl(output);
+	const { buffer } = await fetchImageBuffer(videoUrl);
+
+	return {
+		videoBuffer: buffer,
+	};
+}
