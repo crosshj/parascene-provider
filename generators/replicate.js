@@ -225,9 +225,9 @@ const modelArgsAdapters = {
 		disable_safety_checker: true,
 	}),
 	'prunaai/p-image': (args) => xfrm.noImg({
+		"prompt_upsampling": false,
 		...args,
 		"aspect_ratio": "1:1",
-		"prompt_upsampling": false,
 		seed: randomSeed(),
 		// "lora_scale": 0.5,
 		disable_safety_checker: true,
