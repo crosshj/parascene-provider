@@ -34,6 +34,33 @@ function sendImageResponse(res, result, credits) {
 	return res.send(result.buffer);
 }
 
+function sendVideoResponse(res, result, credits) {
+	const videoBuffer = result?.videoBuffer;
+	if (!videoBuffer || !Buffer.isBuffer(videoBuffer)) {
+		return res.status(500).json({
+			error: 'Invalid video buffer returned from generator',
+		});
+	}
+	res.setHeader('Content-Type', 'video/mp4');
+	res.setHeader('Content-Length', videoBuffer.length);
+	res.setHeader('Cache-Control', 'no-cache');
+	res.setHeader('X-Credits', String(credits));
+	return res.send(videoBuffer);
+}
+
+function sendJsonResponse(res, result, credits, isAsync) {
+	const statusText =
+		result && typeof result.status === 'string' ? result.status : undefined;
+	const httpStatus =
+		isAsync && statusText && statusText !== 'succeeded' ? 202 : 200;
+
+	res.setHeader('Content-Type', 'application/json');
+	if (typeof credits === 'number') {
+		res.setHeader('X-Credits', String(credits));
+	}
+	return res.status(httpStatus).json(result);
+}
+
 export default async function handler(req, res) {
 	if (req.method === 'GET') {
 		if (!validateAuth(req)) {
@@ -102,6 +129,8 @@ export default async function handler(req, res) {
 			const methodDef = generationMethods[body.method];
 			let args = body.args || {};
 
+			const isAsyncRequested = body.async === true;
+
 			const fields = methodDef.fields || {};
 			for (const [fieldName, fieldDef] of Object.entries(fields)) {
 				if (!(fieldName in args) && fieldDef.default !== undefined) {
@@ -131,10 +160,27 @@ export default async function handler(req, res) {
 				});
 			}
 
-			const result = await generator({ ...args, _method: body.method });
+			const result = await generator({
+				...args,
+				_method: body.method,
+				_async: methodDef.async === true && isAsyncRequested,
+			});
 			const credits =
 				typeof methodDef.credits === 'number' ? methodDef.credits : 0;
-			return sendImageResponse(res, result, credits);
+
+			// 1) Video response: presence of videoBuffer
+			if (result && result.videoBuffer) {
+				return sendVideoResponse(res, result, credits);
+			}
+
+			// 2) Image response: presence of buffer
+			if (result && result.buffer) {
+				return sendImageResponse(res, result, credits);
+			}
+
+			// 3) JSON response (polling or other structured data)
+			const isAsync = methodDef.async === true && isAsyncRequested;
+			return sendJsonResponse(res, result, credits, isAsync);
 		} catch (error) {
 			console.error('Error generating image:', error);
 			const message = error?.message || String(error);

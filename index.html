@@ -34,9 +34,14 @@
 						</select>
 					</div>
 					<div id="methodFields"></div>
-					<button onclick="generateImage()" id="generateBtn" disabled>
-						Generate Image (POST)
-					</button>
+					<div class="form-group" style="display: flex; gap: 8px; align-items: center">
+						<button onclick="generateImage()" id="generateBtn" disabled>
+							Generate (POST)
+						</button>
+						<button onclick="pollAsyncJob()" id="pollBtn" style="display: none">
+							Poll Job Status
+						</button>
+					</div>
 				</section>
 			</div>
 		</div>

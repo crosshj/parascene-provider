@@ -386,18 +386,86 @@ export async function generateReplicateImage(args = {}) {
  * @returns {Promise<{ videoBuffer: Buffer }>}
  */
 export async function generateReplicateVideo(args = {}) {
-	const rawModel = args.model ?? 'wan-video/wan-2.2-i2v-fast';
-	const model = rawModel.toString().trim() || 'wan-video/wan-2.2-i2v-fast';
-	const prompt = (args.prompt ?? '').toString().trim();
-	const image = (args.image ?? '').toString().trim();
+	const { _async, job_id, prediction_id, ...rest } = args || {};
 
-	if (!prompt) throw new Error('Replicate video prompt is required');
-	if (!image) throw new Error('Replicate video image is required');
+	const rawModel = rest.model ?? 'wan-video/wan-2.2-i2v-fast';
+	const model = rawModel.toString().trim() || 'wan-video/wan-2.2-i2v-fast';
+	const prompt = (rest.prompt ?? '').toString().trim();
+	const image = (rest.image ?? '').toString().trim();
 
 	const token = process.env.REPLICATE_API_TOKEN;
 	if (!token || typeof token !== 'string') {
 		throw new Error('REPLICATE_API_TOKEN is not set');
 	}
+
+	const replicate = new Replicate({ auth: token });
+
+	// Async mode: act as a thin proxy around Replicate predictions API.
+	if (_async) {
+		// Poll existing job (client-facing job_id, internally a Replicate prediction id)
+		const existingId = job_id || prediction_id;
+		if (existingId) {
+			const id = existingId.toString().trim();
+			const prediction = await replicate.predictions.get(id);
+
+			// If the async job has completed successfully, download and return the video buffer.
+			// Replicate video predictions may return a single URL string or an array; getFirstImageUrl
+			// normalizes either shape.
+			if (prediction && prediction.status === 'succeeded' && prediction.output != null) {
+				const videoUrl = getFirstImageUrl(prediction.output);
+				const { buffer } = await fetchImageBuffer(videoUrl);
+				return {
+					videoBuffer: buffer,
+					job_id: id,
+				};
+			}
+
+			return {
+				async: true,
+				status: prediction?.status ?? 'unknown',
+				job_id: id,
+			};
+		}
+
+		// Start a new prediction (no blocking)
+		if (!prompt) throw new Error('Replicate video prompt is required');
+		if (!image) throw new Error('Replicate video image is required');
+
+		const input = {
+			image,
+			last_image: image,
+			prompt,
+			go_fast: true,
+			num_frames: 97,
+			resolution: '480p',
+			sample_shift: 12,
+			frames_per_second: 16,
+			interpolate_output: false,
+			lora_scale_transformer: 1,
+			lora_scale_transformer_2: 1,
+			disable_safety_checker: true,
+		};
+
+		log('Replicate video prediction.create (async)', {
+			model,
+			inputKeys: Object.keys(input || {}),
+		});
+
+		const prediction = await replicate.predictions.create({
+			model,
+			input,
+		});
+
+		return {
+			async: true,
+			status: prediction?.status ?? 'starting',
+			job_id: prediction.id,
+		};
+	}
+
+	// Synchronous mode: block until video is ready and return buffer.
+	if (!prompt) throw new Error('Replicate video prompt is required');
+	if (!image) throw new Error('Replicate video image is required');
 
 	const input = {
 		image,
@@ -414,9 +482,7 @@ export async function generateReplicateVideo(args = {}) {
 		disable_safety_checker: true,
 	};
 
-	const replicate = new Replicate({ auth: token });
-
-	log('Replicate video run', { model, inputKeys: Object.keys(input || {}) });
+	log('Replicate video run (sync)', { model, inputKeys: Object.keys(input || {}) });
 
 	const output = await replicate.run(model, { input });
 

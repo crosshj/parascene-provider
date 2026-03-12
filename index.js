@@ -41,6 +41,7 @@ const SPECIAL_METHODS = {
 
 const CONTROLS_STORAGE_KEY = 'parascene_generation_controls';
 let _currentMethodKey = null;
+let _currentAsyncJobId = null;
 
 /** Defaults for Replicate method in the test harness when not provided by API (e.g. prompt has no default in generationMethods). */
 const REPLICATE_DEFAULTS = {
@@ -56,6 +57,21 @@ function loadGenerationControls() {
 	} catch {
 		return {};
 	}
+}
+
+function saveAsyncStateForMethod(methodKey) {
+	if (!methodKey) return;
+	const asyncCheckbox = document.getElementById('asyncToggle');
+	const isAsyncChecked =
+		asyncCheckbox && asyncCheckbox instanceof HTMLInputElement
+			? asyncCheckbox.checked
+			: false;
+	const state = loadGenerationControls();
+	state.asyncMethods = state.asyncMethods || {};
+	state.asyncMethods[methodKey] = isAsyncChecked;
+	try {
+		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
+	} catch { }
 }
 
 function getCurrentFieldValues(methodKeyToRead) {
@@ -87,6 +103,12 @@ function saveGenerationControls() {
 	state.selectedMethod = methodKey;
 	state.methods = state.methods || {};
 	state.methods[methodKey] = getCurrentFieldValues(methodKey);
+	// Also persist async toggle state per method (if present)
+	const asyncCheckbox = document.getElementById('asyncToggle');
+	if (asyncCheckbox && asyncCheckbox instanceof HTMLInputElement) {
+		state.asyncMethods = state.asyncMethods || {};
+		state.asyncMethods[methodKey] = asyncCheckbox.checked;
+	}
 	try {
 		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
 	} catch { }
@@ -97,6 +119,12 @@ function saveCurrentMethodStateToStorage() {
 	const state = loadGenerationControls();
 	state.methods = state.methods || {};
 	state.methods[_currentMethodKey] = getCurrentFieldValues(_currentMethodKey);
+	// Persist async toggle for the previous method as well
+	const asyncCheckbox = document.getElementById('asyncToggle');
+	if (asyncCheckbox && asyncCheckbox instanceof HTMLInputElement) {
+		state.asyncMethods = state.asyncMethods || {};
+		state.asyncMethods[_currentMethodKey] = asyncCheckbox.checked;
+	}
 	try {
 		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
 	} catch { }
@@ -367,6 +395,92 @@ function updateMethodFields() {
 		}
 	}
 
+	// Async toggle (manual polling) — only for methods that support async in config
+	// Remove any existing async toggle before adding a new one
+	const existingAsyncContainer = document.getElementById('asyncModeContainer');
+	if (existingAsyncContainer) {
+		existingAsyncContainer.remove();
+	}
+
+	if (method.async === true) {
+		const asyncGroup = document.createElement('div');
+		asyncGroup.id = 'asyncModeContainer';
+		asyncGroup.className = 'form-group';
+		asyncGroup.style.marginTop = '16px';
+
+		const label = document.createElement('label');
+		const checkbox = document.createElement('input');
+		checkbox.type = 'checkbox';
+		checkbox.id = 'asyncToggle';
+		checkbox.style.marginRight = '6px';
+		// Restore saved async state for this method, if any
+		const saved = loadGenerationControls();
+		const savedAsync =
+			saved &&
+			saved.asyncMethods &&
+			Object.prototype.hasOwnProperty.call(saved.asyncMethods, methodKey)
+				? !!saved.asyncMethods[methodKey]
+				: false;
+		checkbox.checked = savedAsync;
+		label.appendChild(checkbox);
+		label.appendChild(
+			document.createTextNode('Async mode'),
+		);
+		asyncGroup.appendChild(label);
+
+		const hint = document.createElement('div');
+		hint.className = 'field-hint';
+		hint.style.fontSize = '0.85em';
+		hint.style.color = '#6b7280';
+		hint.style.marginTop = '4px';
+		hint.textContent =
+			'When enabled, this method returns JSON with a job_id instead of an image/video. Use the Job ID field below to manually poll.';
+		asyncGroup.appendChild(hint);
+
+		// Optional Job ID input for polling existing async jobs (UI-only; not part of capabilities)
+		const jobGroup = document.createElement('div');
+		jobGroup.className = 'form-group';
+		jobGroup.id = 'asyncJobGroup';
+		jobGroup.style.marginTop = '8px';
+		jobGroup.style.display = 'none';
+
+		const jobLabel = document.createElement('label');
+		jobLabel.textContent = 'Job ID (for polling existing async job)';
+		jobGroup.appendChild(jobLabel);
+
+		const jobInput = document.createElement('input');
+		jobInput.type = 'text';
+		jobInput.id = 'asyncJobId';
+		jobInput.placeholder = 'Optional — paste job_id from previous async response to poll';
+		jobInput.style.width = '100%';
+		jobInput.style.marginTop = '4px';
+		jobGroup.appendChild(jobInput);
+
+		asyncGroup.appendChild(jobGroup);
+
+		fieldsDiv.appendChild(asyncGroup);
+
+		// Persist async state whenever the toggle changes
+		checkbox.addEventListener('change', () => {
+			saveAsyncStateForMethod(methodKey);
+		});
+	}
+
+	// Reset async job state and poll button when switching methods
+	_currentAsyncJobId = null;
+	const pollBtn = document.getElementById('pollBtn');
+	if (pollBtn) {
+		pollBtn.style.display = 'none';
+	}
+	const jobGroup = document.getElementById('asyncJobGroup');
+	if (jobGroup) {
+		jobGroup.style.display = 'none';
+		const jobInput = document.getElementById('asyncJobId');
+		if (jobInput) {
+			jobInput.value = '';
+		}
+	}
+
 	_currentMethodKey = methodKey;
 	generateBtn.disabled = false;
 }
@@ -468,12 +582,41 @@ async function generateImage() {
 
 	const imagePanel = document.getElementById('generationImageColumn');
 	const generateBtn = document.getElementById('generateBtn');
-	if (generateBtn) generateBtn.disabled = true;
+	const pollBtn = document.getElementById('pollBtn');
+	if (generateBtn) {
+		generateBtn.disabled = true;
+		// While generating (sync or starting async), hide the poll button
+		generateBtn.style.display = '';
+	}
+	if (pollBtn) {
+		pollBtn.style.display = 'none';
+	}
+
+	const asyncCheckbox = document.getElementById('asyncToggle');
+	const asyncEnabled =
+		Boolean(method.async) && asyncCheckbox && asyncCheckbox instanceof HTMLInputElement
+			? asyncCheckbox.checked
+			: false;
+
+	// If async is enabled and a Job ID is provided (either from UI or stored), treat this call as a poll for that job
+	if (asyncEnabled) {
+		const jobInput = document.getElementById('asyncJobId');
+		const manualJobId = jobInput && jobInput.value.trim();
+		const effectiveJobId = manualJobId || _currentAsyncJobId;
+		if (effectiveJobId) {
+			args.job_id = effectiveJobId;
+		}
+	}
 
 	// Left panel: loading
 	if (imagePanel) {
 		imagePanel.classList.remove('has-content');
-		imagePanel.innerHTML = '<div class="image-loading">Generating image…</div>';
+		if (asyncEnabled) {
+			imagePanel.innerHTML =
+				'<div class="image-loading">Starting async job… response will be JSON with job_id and polling info.</div>';
+		} else {
+			imagePanel.innerHTML = '<div class="image-loading">Generating image…</div>';
+		}
 	}
 
 	try {
@@ -486,6 +629,7 @@ async function generateImage() {
 			body: JSON.stringify({
 				method: methodKey,
 				args: args,
+				async: asyncEnabled,
 			}),
 		});
 
@@ -504,6 +648,49 @@ async function generateImage() {
 			if (imagePanel) {
 				imagePanel.classList.add('has-content');
 				imagePanel.innerHTML = `<pre class="json-result">${JSON.stringify(jsonData, null, 2)}</pre>`;
+			}
+
+			// If this is an async job response with a job_id, update poll state
+			if (method.async && jsonData && typeof jsonData === 'object') {
+				const status = jsonData.status;
+				const jobId = jsonData.job_id || jsonData.prediction_id;
+				const isDone = status === 'succeeded' || status === 'failed' || status === 'canceled';
+
+				if (jobId && !isDone) {
+					// Job is in progress: enable poll-only mode
+					_currentAsyncJobId = String(jobId);
+					if (pollBtn) {
+						pollBtn.style.display = '';
+					}
+					if (generateBtn) {
+						generateBtn.style.display = 'none';
+					}
+					const jobGroup = document.getElementById('asyncJobGroup');
+					if (jobGroup) {
+						jobGroup.style.display = '';
+					}
+					const jobInput = document.getElementById('asyncJobId');
+					if (jobInput && !jobInput.value.trim()) {
+						jobInput.value = _currentAsyncJobId;
+					}
+				} else {
+					// Job is done or failed: reset to generate-only mode
+					_currentAsyncJobId = null;
+					if (pollBtn) {
+						pollBtn.style.display = 'none';
+					}
+					if (generateBtn) {
+						generateBtn.style.display = '';
+					}
+					const jobGroup = document.getElementById('asyncJobGroup');
+					if (jobGroup) {
+						jobGroup.style.display = 'none';
+						const jobInput = document.getElementById('asyncJobId');
+						if (jobInput) {
+							jobInput.value = '';
+						}
+					}
+				}
 			}
 			return;
 		}
@@ -537,8 +724,52 @@ async function generateImage() {
 	}
 }
 
+async function pollAsyncJob() {
+	const methodSelect = document.getElementById('method');
+	const methodKey = methodSelect?.value;
+	if (!methodKey || !capabilities?.methods?.[methodKey]) {
+		return;
+	}
+
+	// Ensure async mode is enabled for polling
+	const asyncCheckbox = document.getElementById('asyncToggle');
+	if (asyncCheckbox && asyncCheckbox instanceof HTMLInputElement) {
+		asyncCheckbox.checked = true;
+	}
+
+	// Prefer stored job id; if none, fall back to text field
+	const jobInput = document.getElementById('asyncJobId');
+	const manualJobId = jobInput && jobInput.value.trim();
+	if (_currentAsyncJobId) {
+		if (jobInput) jobInput.value = _currentAsyncJobId;
+	} else if (manualJobId) {
+		_currentAsyncJobId = manualJobId;
+	} else {
+		// Nothing to poll
+		return;
+	}
+
+	// Reuse generateImage with async=true and job_id set, but switch buttons:
+	// show Poll, hide Generate while polling.
+	const generateBtn = document.getElementById('generateBtn');
+	const pollBtn = document.getElementById('pollBtn');
+	if (pollBtn) {
+		pollBtn.disabled = true;
+	}
+	if (generateBtn) {
+		generateBtn.style.display = 'none';
+	}
+
+	await generateImage();
+
+	if (pollBtn) {
+		pollBtn.disabled = false;
+	}
+}
+
 // Expose functions globally for inline event handlers
 window.fetchCapabilities = fetchCapabilities;
 window.toggleJson = toggleJson;
 window.updateMethodFields = updateMethodFields;
 window.generateImage = generateImage;
+window.pollAsyncJob = pollAsyncJob;

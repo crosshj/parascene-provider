@@ -338,6 +338,7 @@ const generationMethods = {
 		description: 'Run a Replicate image-to-video model.',
 		intent: 'video_generate',
 		credits: 10,
+		async: true,
 		fields: {
 			model: {
 				label: 'Model',
