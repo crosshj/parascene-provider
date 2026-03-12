@@ -130,27 +130,37 @@ export default async function handler(req, res) {
 			let args = body.args || {};
 
 			const isAsyncRequested = body.async === true;
+			const isAsyncCapable = methodDef.async === true;
+			const isAsyncPoll =
+				isAsyncRequested &&
+				isAsyncCapable &&
+				args &&
+				typeof args.job_id === 'string' &&
+				args.job_id.trim() !== '';
 
-			const fields = methodDef.fields || {};
-			for (const [fieldName, fieldDef] of Object.entries(fields)) {
-				if (!(fieldName in args) && fieldDef.default !== undefined) {
-					args[fieldName] = fieldDef.default;
+			// Only apply defaulting and required-field validation for non-poll requests.
+			if (!isAsyncPoll) {
+				const fields = methodDef.fields || {};
+				for (const [fieldName, fieldDef] of Object.entries(fields)) {
+					if (!(fieldName in args) && fieldDef.default !== undefined) {
+						args[fieldName] = fieldDef.default;
+					}
 				}
-			}
 
-			const missingFields = [];
-			for (const [fieldName, fieldDef] of Object.entries(fields)) {
-				if (fieldDef.required && !(fieldName in args)) {
-					missingFields.push(fieldName);
+				const missingFields = [];
+				for (const [fieldName, fieldDef] of Object.entries(fields)) {
+					if (fieldDef.required && !(fieldName in args)) {
+						missingFields.push(fieldName);
+					}
 				}
-			}
 
-			if (missingFields.length > 0) {
-				return res.status(400).json({
-					error: `Missing required arguments: ${missingFields.join(', ')}`,
-					method: body.method,
-					missing_fields: missingFields,
-				});
+				if (missingFields.length > 0) {
+					return res.status(400).json({
+						error: `Missing required arguments: ${missingFields.join(', ')}`,
+						method: body.method,
+						missing_fields: missingFields,
+					});
+				}
 			}
 
 			const generator = methodHandlers[body.method];
@@ -163,7 +173,7 @@ export default async function handler(req, res) {
 			const result = await generator({
 				...args,
 				_method: body.method,
-				_async: methodDef.async === true && isAsyncRequested,
+				_async: isAsyncCapable && isAsyncRequested,
 			});
 			const credits =
 				typeof methodDef.credits === 'number' ? methodDef.credits : 0;

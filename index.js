@@ -598,13 +598,14 @@ async function generateImage() {
 			? asyncCheckbox.checked
 			: false;
 
-	// If async is enabled and a Job ID is provided (either from UI or stored), treat this call as a poll for that job
+	// If async is enabled and a Job ID is provided (either from UI or stored), treat this call as a poll:
+	// only send job_id and ignore other args for this request.
 	if (asyncEnabled) {
 		const jobInput = document.getElementById('asyncJobId');
 		const manualJobId = jobInput && jobInput.value.trim();
 		const effectiveJobId = manualJobId || _currentAsyncJobId;
 		if (effectiveJobId) {
-			args.job_id = effectiveJobId;
+			args = { job_id: effectiveJobId };
 		}
 	}
 
