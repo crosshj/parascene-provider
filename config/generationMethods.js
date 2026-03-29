@@ -140,72 +140,73 @@ const replicateVideoModels = [
 ];
 
 const generationMethods = {
-	fluxImage: {
-		name: 'Flux 2 Pro',
-		description:
-			'Black Forest Labs Flux 2 Pro. Higher quality, higher credits.',
-		intent: 'image_generate',
-		credits: 3,
-		fields: {
-			prompt: {
-				label: 'Prompt',
-				type: 'text',
-				required: true,
-			},
-		},
-	},
-	fluxImageFlex: {
-		name: 'Flux 2 Flex',
-		description: 'Black Forest Labs Flux 2 Flex. More control, highest cost.',
-		intent: 'image_generate',
-		credits: 6,
-		fields: {
-			prompt: {
-				label: 'Prompt',
-				type: 'text',
-				required: true,
-			},
-		},
-	},
-	fluxImageKlein: {
-		name: 'Flux Klein',
-		description:
-			'Black Forest Labs Flux Klein + resolution options. Lower quality, lower credits.',
-		intent: 'image_generate',
-		credits: 1.5,
-		fields: {
-			prompt: {
-				label: 'Prompt',
-				type: 'text',
-				required: true,
-			},
-			resolution: {
-				label: 'Resolution',
-				type: 'select',
-				required: false,
-				default: 'ai_latest',
-				options: fluxResolutionOptions,
-			},
-		},
-	},
-	fluxImageEdit: {
-		name: 'Flux 2 Pro - Image Edit',
-		description: 'Edit and image with Flux 2 Pro',
-		intent: 'image_mutate',
-		credits: 5,
-		fields: {
-			image_url: {
-				label: 'Image URL',
-				type: 'image_url',
-				required: true,
-			},
-			prompt: {
-				label: 'Prompt',
-				type: 'text',
-				required: true,
-			},
-		},
-	},
+	// fluxImage: {
+	// 	name: 'Flux 2 Pro',
+	// 	description:
+	// 		'Black Forest Labs Flux 2 Pro. Higher quality, higher credits.',
+	// 	intent: 'image_generate',
+	// 	credits: 3,
+	// 	fields: {
+	// 		prompt: {
+	// 			label: 'Prompt',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 	},
+	// },
+	// fluxImageFlex: {
+	// 	name: 'Flux 2 Flex',
+	// 	description: 'Black Forest Labs Flux 2 Flex. More control, highest cost.',
+	// 	intent: 'image_generate',
+	// 	credits: 6,
+	// 	fields: {
+	// 		prompt: {
+	// 			label: 'Prompt',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 	},
+	// },
+	// fluxImageKlein: {
+	// 	name: 'Flux Klein',
+	// 	description:
+	// 		'Black Forest Labs Flux Klein + resolution options. Lower quality, lower credits.',
+	// 	intent: 'image_generate',
+	// 	credits: 1.5,
+	// 	fields: {
+	// 		prompt: {
+	// 			label: 'Prompt',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 		resolution: {
+	// 			label: 'Resolution',
+	// 			type: 'select',
+	// 			required: false,
+	// 			default: 'ai_latest',
+	// 			options: fluxResolutionOptions,
+	// 		},
+	// 	},
+	// },
+	// fluxImageEdit: {
+	// 	name: 'Flux 2 Pro - Image Edit',
+	// 	description: 'Edit and image with Flux 2 Pro',
+	// 	intent: 'image_mutate',
+	// 	credits: 5,
+	// 	fields: {
+	// 		image_url: {
+	// 			label: 'Image URL',
+	// 			type: 'image_url',
+	// 			required: true,
+	// 		},
+	// 		prompt: {
+	// 			label: 'Prompt',
+	// 			type: 'text',
+	// 			required: true,
+	// 		},
+	// 	},
+	// },
+
 	// MEH... PixelLab is better for now.
 	// retroDiffusionImage: {
 	// 	name: 'Retro Diffusion',
