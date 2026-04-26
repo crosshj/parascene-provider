@@ -107,6 +107,17 @@ const modelArgsAdapters = {
 		"output_compression": 90,
 		"moderation": "low",
 	}),
+	'openai/gpt-image-2': (args) => xfrm.arrNamed('input_images')({
+		...args,
+		"quality": "high",
+		"background": "opaque",
+		"aspect_ratio": "1:1",
+		"output_format": "png",
+		"input_fidelity": "high",
+		"number_of_images": 1,
+		"output_compression": 90,
+		"moderation": "low",
+	}),
 	// END PRO MODELS
 
 	'google/nano-banana': (args) => xfrm.arrNamed('image_input')({

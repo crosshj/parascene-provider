@@ -120,6 +120,11 @@ const replicateProModels = [
 		hint: 'Supports multiple image inputs. Premium.'
 	},
 	{
+		label: 'OpenAI GPT-Image 2',
+		value: 'openai/gpt-image-2',
+		hint: 'Supports multiple image inputs. Premium.'
+	},
+	{
 		label: 'BFL Flux 2 Max',
 		value: 'black-forest-labs/flux-2-max',
 		hint: 'Supports multiple image inputs. Premium.'
