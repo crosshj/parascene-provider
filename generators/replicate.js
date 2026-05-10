@@ -1,6 +1,35 @@
 import Replicate from 'replicate';
 import sharp from 'sharp';
+import {
+	replicateModels,
+	replicateProModels,
+	replicateVideoModels,
+} from '../config/generationMethods.js';
 import { log, fetchImageBuffer } from './utils.js';
+
+const REPLICATE_MODEL_REF_RE = /^([^/]+)\/([^/:]+)(?::(.+))?$/;
+
+function resolveSelectModel(scope, raw) {
+	const s = String(raw ?? '').trim();
+	if (!s || s.includes(':')) return s;
+	const list =
+		scope === 'replicatePro'
+			? replicateProModels
+			: scope === 'replicateVideo'
+				? replicateVideoModels
+				: replicateModels;
+	const hit = list.find(
+		(o) => typeof o.value === 'string' && o.value.split(':')[0].trim() === s
+	);
+	return hit ? hit.value.trim() : s;
+}
+
+/** Digested refs must use `{ version }` for predictions.create (SDK route shape). */
+function replicatePredictionBody(ref, input) {
+	const m = String(ref).trim().match(REPLICATE_MODEL_REF_RE);
+	if (!m) throw new Error(`Invalid Replicate model reference: ${ref}`);
+	return m[3] ? { version: m[3], input } : { model: `${m[1]}/${m[2]}`, input };
+}
 
 // --- Image-input adapter patterns (args.input_images → model-specific fields) ---
 
@@ -373,7 +402,10 @@ export async function generateReplicateImage(args = {}) {
 
 	log('Replicate run', { model, inputKeys: Object.keys(input || {}) });
 
-	const output = await replicate.run(model, { input });
+	const output = await replicate.run(
+		resolveSelectModel(_method === 'replicatePro' ? 'replicatePro' : 'replicate', model),
+		{ input }
+	);
 
 	const imageUrl = getFirstImageUrl(output);
 	const { buffer } = await fetchImageBuffer(imageUrl);
@@ -410,6 +442,7 @@ export async function generateReplicateVideo(args = {}) {
 	}
 
 	const replicate = new Replicate({ auth: token });
+	const ref = resolveSelectModel('replicateVideo', model);
 
 	// Async mode: act as a thin proxy around Replicate predictions API.
 	if (_async) {
@@ -462,10 +495,9 @@ export async function generateReplicateVideo(args = {}) {
 			inputKeys: Object.keys(input || {}),
 		});
 
-		const prediction = await replicate.predictions.create({
-			model,
-			input,
-		});
+		const prediction = await replicate.predictions.create(
+			replicatePredictionBody(ref, input)
+		);
 
 		return {
 			async: true,
@@ -493,9 +525,12 @@ export async function generateReplicateVideo(args = {}) {
 		disable_safety_checker: true,
 	};
 
-	log('Replicate video run (sync)', { model, inputKeys: Object.keys(input || {}) });
+	log('Replicate video run (sync)', {
+		model,
+		inputKeys: Object.keys(input || {}),
+	});
 
-	const output = await replicate.run(model, { input });
+	const output = await replicate.run(ref, { input });
 
 	const videoUrl = getFirstImageUrl(output);
 	const { buffer } = await fetchImageBuffer(videoUrl);
