@@ -4,8 +4,73 @@ import {
 	replicateModels,
 	replicateProModels,
 	replicateVideoModels,
+	ASPECT_RATIO_OPTIONS,
 } from '../config/generationMethods.js';
+import { getSyntheticAspectRatioDef } from '../config/syntheticAspectRatios.js';
+import { fitImageToAspectRatio } from '../lib/aspectRatio.js';
 import { log, fetchImageBuffer } from './utils.js';
+
+const GROK_IMAGINE_MODEL = 'xai/grok-imagine-image';
+
+/** Native Replicate aspect_ratio values for grok (3:4 = generateAs for synthetic 4:5). */
+const GROK_NATIVE_ASPECT_RATIOS = new Set(['1:1', '9:16', '16:9', '3:4']);
+
+function replicateModelBase(modelRef) {
+	return String(modelRef ?? '').split(':')[0].trim();
+}
+
+function resolveAspectRatioPlan(modelRef, raw) {
+	const requested = String(raw ?? '').trim() || '1:1';
+	const base = replicateModelBase(modelRef);
+
+	if (!ASPECT_RATIO_OPTIONS.includes(requested)) {
+		throw new Error(
+			`Unsupported aspect_ratio "${requested}". Allowed: ${ASPECT_RATIO_OPTIONS.join(', ')}`
+		);
+	}
+
+	if (base !== GROK_IMAGINE_MODEL) {
+		if (requested !== '1:1') {
+			throw new Error(
+				`aspect_ratio "${requested}" is not supported for ${base} (1:1 only)`
+			);
+		}
+		return {
+			requested: '1:1',
+			apiAspectRatio: '1:1',
+			postProcess: null,
+		};
+	}
+
+	const syntheticDef = getSyntheticAspectRatioDef(requested);
+	if (syntheticDef) {
+		if (!GROK_NATIVE_ASPECT_RATIOS.has(syntheticDef.generateAs)) {
+			throw new Error(
+				`aspect_ratio "${requested}" is not supported for ${base}`
+			);
+		}
+		return {
+			requested,
+			apiAspectRatio: syntheticDef.generateAs,
+			postProcess: {
+				target: syntheticDef.key,
+				mode: syntheticDef.postProcess,
+			},
+		};
+	}
+
+	if (!GROK_NATIVE_ASPECT_RATIOS.has(requested)) {
+		throw new Error(
+			`aspect_ratio "${requested}" is not supported for ${base}`
+		);
+	}
+
+	return {
+		requested,
+		apiAspectRatio: requested,
+		postProcess: null,
+	};
+}
 
 const REPLICATE_MODEL_REF_RE = /^([^/]+)\/([^/:]+)(?::(.+))?$/;
 
@@ -222,7 +287,6 @@ const modelArgsAdapters = {
 	// xai/grok-imagine-image requires format in URL; URLs without extension fail with "Invalid image format ''"
 	'xai/grok-imagine-image': (args) => xfrm.imgNamed(['image'])({
 		...args,
-		"aspect_ratio": "1:1",
 		seed: randomSeed(),
 		// no support for disable_safety_checker
 	}),
@@ -381,8 +445,10 @@ export async function generateReplicateImage(args = {}) {
 		);
 	}
 
-	const { model: _model, prompt: _prompt, ...rest } = restArgs;
-	let input = { prompt, ...rest };
+	const aspectPlan = resolveAspectRatioPlan(model, restArgs.aspect_ratio);
+
+	const { model: _model, prompt: _prompt, aspect_ratio: _aspect, ...rest } = restArgs;
+	let input = { prompt, aspect_ratio: aspectPlan.apiAspectRatio, ...rest };
 	const adapter = modelArgsAdapters[baseModel];
 	if (adapter) {
 		input = adapter(input, ctx);
@@ -400,7 +466,17 @@ export async function generateReplicateImage(args = {}) {
 
 	const replicate = new Replicate({ auth: token });
 
-	log('Replicate run', { model, inputKeys: Object.keys(input || {}) });
+	log('Replicate run', {
+		model,
+		inputKeys: Object.keys(input || {}),
+		...(aspectPlan.postProcess
+			? {
+					aspect_ratio_requested: aspectPlan.requested,
+					aspect_ratio_api: aspectPlan.apiAspectRatio,
+					aspect_ratio_post_process: aspectPlan.postProcess,
+				}
+			: {}),
+	});
 
 	const output = await replicate.run(
 		resolveSelectModel(_method === 'replicatePro' ? 'replicatePro' : 'replicate', model),
@@ -410,12 +486,24 @@ export async function generateReplicateImage(args = {}) {
 	const imageUrl = getFirstImageUrl(output);
 	const { buffer } = await fetchImageBuffer(imageUrl);
 
-	const meta = await sharp(buffer).metadata();
-	const width = typeof meta.width === 'number' ? meta.width : 1024;
-	const height = typeof meta.height === 'number' ? meta.height : 1024;
+	let outBuffer = await sharp(buffer).png().toBuffer();
+	let meta = await sharp(outBuffer).metadata();
+	let width = typeof meta.width === 'number' ? meta.width : 1024;
+	let height = typeof meta.height === 'number' ? meta.height : 1024;
+
+	if (aspectPlan.postProcess) {
+		const fitted = await fitImageToAspectRatio(
+			outBuffer,
+			aspectPlan.postProcess.target,
+			{ mode: aspectPlan.postProcess.mode }
+		);
+		outBuffer = fitted.buffer;
+		width = fitted.width;
+		height = fitted.height;
+	}
 
 	return {
-		buffer: await sharp(buffer).png().toBuffer(),
+		buffer: outBuffer,
 		width,
 		height,
 	};

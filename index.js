@@ -59,6 +59,30 @@ function loadGenerationControls() {
 	}
 }
 
+function isConfigHiddenField(fieldDef) {
+	return fieldDef?.hidden === true || fieldDef?.hidden === 'true';
+}
+
+function methodHasConfigHiddenFields(fields) {
+	return Object.values(fields || {}).some(isConfigHiddenField);
+}
+
+function getShowHiddenFieldsPreference() {
+	const el = document.getElementById('showHiddenFields');
+	if (el && el instanceof HTMLInputElement) {
+		return el.checked;
+	}
+	return loadGenerationControls().showHiddenFields === true;
+}
+
+function saveShowHiddenFieldsPreference(checked) {
+	const state = loadGenerationControls();
+	state.showHiddenFields = !!checked;
+	try {
+		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
+	} catch { }
+}
+
 function saveAsyncStateForMethod(methodKey) {
 	if (!methodKey) return;
 	const asyncCheckbox = document.getElementById('asyncToggle');
@@ -80,11 +104,17 @@ function getCurrentFieldValues(methodKeyToRead) {
 	const fields = method.fields || {};
 	const values = {};
 	for (const fieldName of Object.keys(fields)) {
+		const fieldDef = fields[fieldName];
+		const isHidden = isConfigHiddenField(fieldDef);
 		const input =
 			document.getElementById(`field_${fieldName}`) ||
 			document.querySelector(`[name="${fieldName}"]`);
-		if (!input) continue;
-		const fieldDef = fields[fieldName];
+		if (!input) {
+			if (isHidden && fieldDef?.default != null && fieldDef.default !== '') {
+				values[fieldName] = String(fieldDef.default);
+			}
+			continue;
+		}
 		if (fieldDef?.type === 'boolean') {
 			values[fieldName] = input.checked;
 		} else if ('value' in input) {
@@ -108,6 +138,10 @@ function saveGenerationControls() {
 	if (asyncCheckbox && asyncCheckbox instanceof HTMLInputElement) {
 		state.asyncMethods = state.asyncMethods || {};
 		state.asyncMethods[methodKey] = asyncCheckbox.checked;
+	}
+	const showHiddenEl = document.getElementById('showHiddenFields');
+	if (showHiddenEl && showHiddenEl instanceof HTMLInputElement) {
+		state.showHiddenFields = showHiddenEl.checked;
 	}
 	try {
 		localStorage.setItem(CONTROLS_STORAGE_KEY, JSON.stringify(state));
@@ -213,6 +247,159 @@ async function fetchCapabilities() {
 	}
 }
 
+function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) {
+	const formGroup = document.createElement('div');
+	formGroup.className = 'form-group';
+	formGroup.style.marginBottom = '12px';
+
+	const label = document.createElement('label');
+	label.textContent = `${fieldDef.label}${fieldDef.required ? ' *' : ''}`;
+	formGroup.appendChild(label);
+	if (fieldDef.hint) {
+		const hintEl = document.createElement('span');
+		hintEl.className = 'field-hint';
+		hintEl.style.display = 'block';
+		hintEl.style.fontSize = '0.85em';
+		hintEl.style.color = '#6b7280';
+		hintEl.style.marginTop = '2px';
+		hintEl.style.marginBottom = '4px';
+		hintEl.textContent = fieldDef.hint;
+		formGroup.appendChild(hintEl);
+	}
+
+	let input;
+	if (fieldDef.type === 'text' || fieldDef.type === 'json-object' || fieldDef.type === 'image_url_array') {
+		input = document.createElement('textarea');
+		const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
+		input.rows = isJsonField ? 6 : 3;
+	} else if (fieldDef.type === 'url') {
+		input = document.createElement('input');
+		input.type = 'url';
+		input.autocapitalize = 'off';
+		input.autocomplete = 'off';
+		input.spellcheck = false;
+	} else if (fieldDef.type === 'color') {
+		input = document.createElement('input');
+		input.type = 'color';
+	} else if (fieldDef.type === 'select') {
+		input = document.createElement('select');
+		const options = fieldDef.options || [];
+		for (const opt of options) {
+			const option = document.createElement('option');
+			option.value = opt.value;
+			option.textContent =
+				typeof opt.credits === 'number'
+					? `${opt.label} (${opt.credits} credits)`
+					: opt.label;
+			input.appendChild(option);
+		}
+		if (fieldDef.default != null && fieldDef.default !== '') {
+			input.value = String(fieldDef.default);
+		} else if (options.length > 0) {
+			input.value = String(options[0].value);
+		}
+	} else if (fieldDef.type === 'boolean') {
+		input = document.createElement('input');
+		input.type = 'checkbox';
+		input.checked = fieldDef.default === true || fieldDef.default === 'true';
+	} else {
+		input = document.createElement('input');
+		input.type = 'text';
+	}
+	input.id = `field_${fieldName}`;
+	input.name = fieldName;
+	if (fieldDef.type !== 'select' && fieldDef.type !== 'boolean') {
+		input.placeholder = fieldDef.required ? 'Required' : 'Optional';
+	}
+	const saved = loadGenerationControls();
+	const savedForMethod = saved.methods?.[methodKey];
+	if (savedForMethod && fieldName in savedForMethod) {
+		if (fieldDef.type === 'boolean') {
+			const v = savedForMethod[fieldName];
+			input.checked = v === true || v === 'true';
+		} else if (savedForMethod[fieldName] !== '' && savedForMethod[fieldName] != null) {
+			input.value = savedForMethod[fieldName];
+		}
+	}
+	if ((input.value === '' || input.value === undefined) && (fieldDef.type === 'text' || fieldDef.type === 'url' || fieldDef.type === 'json-object') && fieldDef.default != null && fieldDef.default !== '') {
+		input.value = typeof fieldDef.default === 'string' ? fieldDef.default : JSON.stringify(fieldDef.default, null, 2);
+	} else if ((input.value === '' || input.value === undefined) && methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
+		input.value = String(REPLICATE_DEFAULTS[fieldName]);
+	}
+	input.addEventListener('change', saveGenerationControls);
+	input.addEventListener('input', saveGenerationControls);
+	formGroup.appendChild(input);
+
+	if (fieldDef.type === 'select' && fieldDef.options?.some((opt) => opt.hint)) {
+		const selectHint = document.createElement('span');
+		selectHint.className = 'field-hint';
+		selectHint.style.display = 'block';
+		selectHint.style.fontSize = '0.85em';
+		selectHint.style.color = '#6b7280';
+		selectHint.style.marginTop = '4px';
+		const updateSelectHint = () => {
+			const opt = fieldDef.options.find((o) => o.value === input.value);
+			selectHint.textContent = opt?.hint ?? '';
+		};
+		updateSelectHint();
+		input.addEventListener('change', updateSelectHint);
+		formGroup.appendChild(selectHint);
+	}
+
+	if (fieldName === 'image_url') {
+		const preview = document.createElement('img');
+		preview.style.maxWidth = '100%';
+		preview.style.marginTop = '8px';
+		preview.style.display = 'none';
+
+		input.addEventListener('input', () => {
+			const v = input.value.trim();
+			if (!v) {
+				preview.removeAttribute('src');
+				preview.style.display = 'none';
+				return;
+			}
+			preview.src = v;
+			preview.style.display = 'block';
+		});
+
+		formGroup.appendChild(preview);
+	}
+
+	if (methodKey === 'advanced_generate' && fieldName === 'image_url') {
+		formGroup.dataset.advancedOperation = 'outpaint';
+		formGroup.style.display = 'none';
+	}
+
+	fieldGroup.appendChild(formGroup);
+}
+
+function appendShowHiddenFieldsToggle(fieldGroup, showHiddenFields) {
+	const formGroup = document.createElement('div');
+	formGroup.className = 'form-group';
+	formGroup.style.marginBottom = '12px';
+
+	const label = document.createElement('label');
+	label.style.display = 'inline-flex';
+	label.style.alignItems = 'center';
+	label.style.gap = '8px';
+	label.style.cursor = 'pointer';
+
+	const checkbox = document.createElement('input');
+	checkbox.type = 'checkbox';
+	checkbox.id = 'showHiddenFields';
+	checkbox.checked = showHiddenFields;
+	checkbox.addEventListener('change', () => {
+		saveShowHiddenFieldsPreference(checkbox.checked);
+		updateMethodFields();
+	});
+
+	label.appendChild(checkbox);
+	label.appendChild(document.createTextNode('Show hidden fields'));
+	formGroup.appendChild(label);
+	fieldGroup.appendChild(formGroup);
+}
+
 function updateMethodFields() {
 	const methodSelect = document.getElementById('method');
 	const methodKey = methodSelect?.value;
@@ -231,6 +418,7 @@ function updateMethodFields() {
 	}
 
 	const method = capabilities.methods[methodKey];
+	const showHiddenFields = getShowHiddenFieldsPreference();
 	fieldsDiv.innerHTML = '';
 
 	if (method.description) {
@@ -242,140 +430,26 @@ function updateMethodFields() {
 	}
 
 	const fields = method.fields || {};
-	if (Object.keys(fields).length > 0) {
+	const fieldEntries = Object.entries(fields);
+	const hasHiddenFields = methodHasConfigHiddenFields(fields);
+
+	if (fieldEntries.length > 0) {
 		const fieldGroup = document.createElement('div');
 		fieldGroup.className = 'field-group';
 
-		for (const [fieldName, fieldDef] of Object.entries(fields)) {
-			const formGroup = document.createElement('div');
-			formGroup.className = 'form-group';
-			formGroup.style.marginBottom = '12px';
+		for (const [fieldName, fieldDef] of fieldEntries) {
+			if (isConfigHiddenField(fieldDef)) continue;
+			appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef);
+		}
 
-			const label = document.createElement('label');
-			label.textContent = `${fieldDef.label}${fieldDef.required ? ' *' : ''}`;
-			formGroup.appendChild(label);
-			if (fieldDef.hint) {
-				const hintEl = document.createElement('span');
-				hintEl.className = 'field-hint';
-				hintEl.style.display = 'block';
-				hintEl.style.fontSize = '0.85em';
-				hintEl.style.color = '#6b7280';
-				hintEl.style.marginTop = '2px';
-				hintEl.style.marginBottom = '4px';
-				hintEl.textContent = fieldDef.hint;
-				formGroup.appendChild(hintEl);
-			}
-
-			let input;
-			if (fieldDef.type === 'text' || fieldDef.type === 'json-object' || fieldDef.type === 'image_url_array') {
-				input = document.createElement('textarea');
-				const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
-				input.rows = isJsonField ? 6 : 3;
-			} else if (fieldDef.type === 'url') {
-				input = document.createElement('input');
-				input.type = 'url';
-				input.autocapitalize = 'off';
-				input.autocomplete = 'off';
-				input.spellcheck = false;
-			} else if (fieldDef.type === 'color') {
-				input = document.createElement('input');
-				input.type = 'color';
-			} else if (fieldDef.type === 'select') {
-				input = document.createElement('select');
-				const options = fieldDef.options || [];
-				for (const opt of options) {
-					const option = document.createElement('option');
-					option.value = opt.value;
-					option.textContent =
-						typeof opt.credits === 'number'
-							? `${opt.label} (${opt.credits} credits)`
-							: opt.label;
-					input.appendChild(option);
-				}
-				if (fieldDef.default != null && fieldDef.default !== '') {
-					input.value = String(fieldDef.default);
-				} else if (options.length > 0) {
-					input.value = String(options[0].value);
-				}
-			} else if (fieldDef.type === 'boolean') {
-				input = document.createElement('input');
-				input.type = 'checkbox';
-				input.checked = fieldDef.default === true || fieldDef.default === 'true';
-			} else {
-				input = document.createElement('input');
-				input.type = 'text';
-			}
-			input.id = `field_${fieldName}`;
-			input.name = fieldName;
-			if (fieldDef.type !== 'select' && fieldDef.type !== 'boolean') {
-				input.placeholder = fieldDef.required ? 'Required' : 'Optional';
-			}
-			// Restore saved value for this method, or apply default for text/textarea/json-object
-			const saved = loadGenerationControls();
-			const savedForMethod = saved.methods?.[methodKey];
-			if (savedForMethod && fieldName in savedForMethod) {
-				if (fieldDef.type === 'boolean') {
-					const v = savedForMethod[fieldName];
-					input.checked = v === true || v === 'true';
-				} else if (savedForMethod[fieldName] !== '' && savedForMethod[fieldName] != null) {
-					input.value = savedForMethod[fieldName];
+		if (hasHiddenFields) {
+			appendShowHiddenFieldsToggle(fieldGroup, showHiddenFields);
+			if (showHiddenFields) {
+				for (const [fieldName, fieldDef] of fieldEntries) {
+					if (!isConfigHiddenField(fieldDef)) continue;
+					appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef);
 				}
 			}
-			// Apply default when value is still empty (no saved value, or saved was empty)
-			if ((input.value === '' || input.value === undefined) && (fieldDef.type === 'text' || fieldDef.type === 'url' || fieldDef.type === 'json-object') && fieldDef.default != null && fieldDef.default !== '') {
-				input.value = typeof fieldDef.default === 'string' ? fieldDef.default : JSON.stringify(fieldDef.default, null, 2);
-			} else if ((input.value === '' || input.value === undefined) && methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
-				input.value = String(REPLICATE_DEFAULTS[fieldName]);
-			}
-			input.addEventListener('change', saveGenerationControls);
-			input.addEventListener('input', saveGenerationControls);
-			formGroup.appendChild(input);
-
-			// Select with option hints: show selected option's hint under the selector
-			if (fieldDef.type === 'select' && fieldDef.options?.some((opt) => opt.hint)) {
-				const selectHint = document.createElement('span');
-				selectHint.className = 'field-hint';
-				selectHint.style.display = 'block';
-				selectHint.style.fontSize = '0.85em';
-				selectHint.style.color = '#6b7280';
-				selectHint.style.marginTop = '4px';
-				const updateSelectHint = () => {
-					const opt = fieldDef.options.find((o) => o.value === input.value);
-					selectHint.textContent = opt?.hint ?? '';
-				};
-				updateSelectHint();
-				input.addEventListener('change', updateSelectHint);
-				formGroup.appendChild(selectHint);
-			}
-
-			// Nice UX for image_url fields: show a quick preview.
-			if (fieldName === 'image_url') {
-				const preview = document.createElement('img');
-				preview.style.maxWidth = '100%';
-				preview.style.marginTop = '8px';
-				preview.style.display = 'none';
-
-				input.addEventListener('input', () => {
-					const v = input.value.trim();
-					if (!v) {
-						preview.removeAttribute('src');
-						preview.style.display = 'none';
-						return;
-					}
-					preview.src = v;
-					preview.style.display = 'block';
-				});
-
-				formGroup.appendChild(preview);
-			}
-
-			// Advanced outpaint: show image_url only when operation is "outpaint"
-			if (methodKey === 'advanced_generate' && fieldName === 'image_url') {
-				formGroup.dataset.advancedOperation = 'outpaint';
-				formGroup.style.display = 'none';
-			}
-
-			fieldGroup.appendChild(formGroup);
 		}
 
 		fieldsDiv.appendChild(fieldGroup);
@@ -512,10 +586,16 @@ async function generateImage() {
 
 	// Collect field values from inputs in the method form (by id or name so we always find them)
 	for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
+		const isHidden = isConfigHiddenField(fieldDef);
 		const input =
 			document.getElementById(`field_${fieldName}`) ||
 			(fieldsContainer && fieldsContainer.querySelector(`[name="${fieldName}"]`));
-		if (!input) continue;
+		if (!input) {
+			if (isHidden && fieldDef.default != null && fieldDef.default !== '') {
+				args[fieldName] = String(fieldDef.default);
+			}
+			continue;
+		}
 		if (fieldDef.type === 'boolean') {
 			args[fieldName] = input.checked;
 		} else if (fieldDef.type === 'select') {

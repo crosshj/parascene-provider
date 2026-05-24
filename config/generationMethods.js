@@ -6,11 +6,14 @@ const fluxResolutionOptions = [
 	{ label: 'AI Latest', value: 'ai_latest' },
 ];
 
+/** replicate method: aspect ratios advertised to host. */
+const ASPECT_RATIO_OPTIONS = ['1:1', '4:5', '9:16', '16:9'];
+
 const replicateModels = [
 	{
 		label: 'X.ai Grok Imagine Image',
 		value: 'xai/grok-imagine-image',
-		hint: 'Supports single image input. Low censorship.'
+		hint: 'Supports single image input. Low censorship.',
 	},
 	{
 		label: 'PrunaAI P-Image',
@@ -308,6 +311,17 @@ const generationMethods = {
 				type: 'text',
 				required: true,
 			},
+			aspect_ratio: {
+				label: 'Aspect Ratio',
+				type: 'select',
+				hidden: true,
+				required: false,
+				default: '1:1',
+				options: ASPECT_RATIO_OPTIONS.map((value) => ({
+					label: value,
+					value,
+				})),
+			},
 			input_images: {
 				label: 'Input Images',
 				type: 'image_url_array',
@@ -428,4 +442,5 @@ export {
 	replicateModels,
 	replicateProModels,
 	replicateVideoModels,
+	ASPECT_RATIO_OPTIONS,
 };
