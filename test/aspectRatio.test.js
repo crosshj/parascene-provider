@@ -3,12 +3,18 @@ import {
 	parseAspectRatioKey,
 	fitImageToAspectRatio,
 	pickNearestNativeAspectRatio,
+	dimensionsForAspectRatioLongEdge,
 } from '../lib/aspectRatio.js';
 
 describe('aspectRatio', () => {
 	it('parses ratio keys', () => {
 		expect(parseAspectRatioKey('4:5').value).toBeCloseTo(0.8, 5);
 		expect(parseAspectRatioKey('3:4').value).toBeCloseTo(0.75, 5);
+	});
+
+	it('dimensionsForAspectRatioLongEdge uses long edge 1024', () => {
+		expect(dimensionsForAspectRatioLongEdge('9:16')).toEqual({ width: 576, height: 1024 });
+		expect(dimensionsForAspectRatioLongEdge('16:9')).toEqual({ width: 1024, height: 576 });
 	});
 
 	it('picks 3:4 as nearest native for 4:5', () => {

@@ -282,7 +282,7 @@ const generationMethods = {
 	uploadImage: {
 		name: 'Upload Image',
 		description:
-			'Resizes an image from a URL to 1024x1024 (cover + entropy crop).',
+			'Letterboxes an image from a URL to the chosen aspect ratio (long edge 1024; no crop).',
 		intent: 'image_generate',
 		credits: 0,
 		fields: {
@@ -290,6 +290,17 @@ const generationMethods = {
 				label: 'Image URL',
 				type: 'image_url',
 				required: true,
+			},
+			aspect_ratio: {
+				label: 'Aspect Ratio',
+				type: 'select',
+				hidden: true,
+				required: false,
+				default: '1:1',
+				options: ASPECT_RATIO_OPTIONS.map((value) => ({
+					label: value,
+					value,
+				})),
 			},
 		},
 	},

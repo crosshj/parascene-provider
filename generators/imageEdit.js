@@ -1,11 +1,33 @@
 import sharp from 'sharp';
+import {
+	dimensionsForAspectRatioLongEdge,
+	parseAspectRatioKey,
+} from '../lib/aspectRatio.js';
 import { log, fetchImageBuffer } from './utils.js';
 
 const maxBytes = 20 * 1024 * 1024;
+const LONG_EDGE = 1024;
+const DEFAULT_ASPECT = '1:1';
+/** Letterbox padding — matches fitImageToAspectRatio letterbox default. */
+const LETTERBOX_BACKGROUND = { r: 24, g: 24, b: 32, alpha: 1 };
 
 /**
- * Resize an image to 1024x1024 using the same logic as fluxImageEdit:
- * fit 'cover' + position 'entropy' (no stretching, crop to fill).
+ * @param {unknown} raw
+ * @returns {string}
+ */
+function resolveAspectRatio(raw) {
+	const key = String(raw ?? '').trim() || DEFAULT_ASPECT;
+	try {
+		parseAspectRatioKey(key);
+		return key;
+	} catch {
+		return DEFAULT_ASPECT;
+	}
+}
+
+/**
+ * Fit an image from a URL into the requested aspect ratio (long edge 1024).
+ * Letterboxes only — no pixel loss (mutates can fill padding later). Defaults to 1:1.
  */
 export async function uploadImage(args = {}) {
 	if (!args || typeof args !== 'object')
@@ -20,6 +42,12 @@ export async function uploadImage(args = {}) {
 		throw new Error('image_url must be a valid URL');
 	}
 
+	const aspectKey = resolveAspectRatio(args.aspect_ratio);
+	const { width: targetW, height: targetH } = dimensionsForAspectRatioLongEdge(
+		aspectKey,
+		LONG_EDGE
+	);
+
 	const { buffer: fetchedBuffer } = await fetchImageBuffer(image_url);
 	let imgBuf = fetchedBuffer;
 
@@ -29,25 +57,31 @@ export async function uploadImage(args = {}) {
 		);
 
 	const meta = await sharp(imgBuf).metadata();
+	const width = Number(meta.width);
+	const height = Number(meta.height);
+
 	if (
-		typeof meta.width === 'number' &&
-		typeof meta.height === 'number' &&
-		(meta.width !== 1024 || meta.height !== 1024)
+		Number.isFinite(width) &&
+		width > 0 &&
+		Number.isFinite(height) &&
+		height > 0 &&
+		(width !== targetW || height !== targetH)
 	) {
-		log('Resizing image to 1024x1024', {
-			from: { width: meta.width, height: meta.height },
-			mode: 'cover+entropy',
+		log('Letterboxing image to target aspect', {
+			aspect_ratio: aspectKey,
+			from: { width, height },
+			to: { width: targetW, height: targetH },
+			mode: 'contain',
 		});
 
 		imgBuf = await sharp(imgBuf)
-			.resize(1024, 1024, {
-				fit: 'cover',
-				position: 'entropy',
+			.resize(targetW, targetH, {
+				fit: 'contain',
+				background: LETTERBOX_BACKGROUND,
 			})
 			.png()
 			.toBuffer();
 	} else {
-		// Already 1024x1024; ensure we output PNG for consistent response
 		imgBuf = await sharp(imgBuf).png().toBuffer();
 	}
 
@@ -58,8 +92,8 @@ export async function uploadImage(args = {}) {
 
 	return {
 		buffer: imgBuf,
-		width: 1024,
-		height: 1024,
+		width: targetW,
+		height: targetH,
 		color: '#000000',
 	};
 }
