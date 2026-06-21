@@ -4,73 +4,10 @@ import {
 	replicateModels,
 	replicateProModels,
 	replicateVideoModels,
-	ASPECT_RATIO_OPTIONS,
+	resolveAspectRatioPlan,
 } from '../config/generationMethods.js';
-import { getSyntheticAspectRatioDef } from '../config/syntheticAspectRatios.js';
-import { fitImageToAspectRatio } from '../lib/aspectRatio.js';
+import { fitImageToAspectRatio, dimensionsForAspectRatioLongEdge } from '../lib/aspectRatio.js';
 import { log, fetchImageBuffer } from './utils.js';
-
-const GROK_IMAGINE_MODEL = 'xai/grok-imagine-image';
-
-/** Native Replicate aspect_ratio values for grok (3:4 = generateAs for synthetic 4:5). */
-const GROK_NATIVE_ASPECT_RATIOS = new Set(['1:1', '9:16', '16:9', '3:4']);
-
-function replicateModelBase(modelRef) {
-	return String(modelRef ?? '').split(':')[0].trim();
-}
-
-function resolveAspectRatioPlan(modelRef, raw) {
-	const requested = String(raw ?? '').trim() || '1:1';
-	const base = replicateModelBase(modelRef);
-
-	if (!ASPECT_RATIO_OPTIONS.includes(requested)) {
-		throw new Error(
-			`Unsupported aspect_ratio "${requested}". Allowed: ${ASPECT_RATIO_OPTIONS.join(', ')}`
-		);
-	}
-
-	if (base !== GROK_IMAGINE_MODEL) {
-		if (requested !== '1:1') {
-			throw new Error(
-				`aspect_ratio "${requested}" is not supported for ${base} (1:1 only)`
-			);
-		}
-		return {
-			requested: '1:1',
-			apiAspectRatio: '1:1',
-			postProcess: null,
-		};
-	}
-
-	const syntheticDef = getSyntheticAspectRatioDef(requested);
-	if (syntheticDef) {
-		if (!GROK_NATIVE_ASPECT_RATIOS.has(syntheticDef.generateAs)) {
-			throw new Error(
-				`aspect_ratio "${requested}" is not supported for ${base}`
-			);
-		}
-		return {
-			requested,
-			apiAspectRatio: syntheticDef.generateAs,
-			postProcess: {
-				target: syntheticDef.key,
-				mode: syntheticDef.postProcess,
-			},
-		};
-	}
-
-	if (!GROK_NATIVE_ASPECT_RATIOS.has(requested)) {
-		throw new Error(
-			`aspect_ratio "${requested}" is not supported for ${base}`
-		);
-	}
-
-	return {
-		requested,
-		apiAspectRatio: requested,
-		postProcess: null,
-	};
-}
 
 const REPLICATE_MODEL_REF_RE = /^([^/]+)\/([^/:]+)(?::(.+))?$/;
 
@@ -140,12 +77,33 @@ async function normalizeImageToDataUri(imageInput) {
 const SDXL_NEG = 'worst quality, low quality, frame, border, signature, watermark';
 const randomSeed = () => Math.floor(Math.random() * 1000000);
 
+/** Apply resolved aspect plan after model adapter defaults (adapters must not hardcode aspect_ratio). */
+function applyAspectPlanToInput(input, aspectPlan) {
+	const out = { ...input };
+	const ratioKey = aspectPlan.apiAspectRatio;
+	const { width, height } = dimensionsForAspectRatioLongEdge(ratioKey);
+
+	if (aspectPlan.usesDimensions) {
+		out.width = width;
+		out.height = height;
+		delete out.aspect_ratio;
+	} else if (aspectPlan.usesRecraftSize) {
+		out.aspect_ratio = ratioKey;
+		out.size = `${width}x${height}`;
+	} else {
+		out.aspect_ratio = ratioKey;
+		delete out.width;
+		delete out.height;
+	}
+
+	return out;
+}
+
 const modelArgsAdapters = {
 	// multiple image input
 	'black-forest-labs/flux-2-max': (args) => (xfrm.arrNamed('input_images')({
 		...args,
 		"resolution": "1 MP",
-		"aspect_ratio": "1:1",
 		"output_format": "png",
 		"safety_tolerance": 5
 	})),
@@ -154,7 +112,6 @@ const modelArgsAdapters = {
 		? xfrm.arrNamed('input_images')({
 			...args,
 			"resolution": "1 MP",
-			"aspect_ratio": "1:1",
 			"output_format": "png",
 			"safety_tolerance": 5
 		})
@@ -165,7 +122,6 @@ const modelArgsAdapters = {
 			const result = {
 				...rest,
 				"resolution": "1 MP",
-				"aspect_ratio": "1:1",
 				"output_format": "png",
 				"safety_tolerance": 5
 			};
@@ -174,7 +130,6 @@ const modelArgsAdapters = {
 		})()),
 	'google/nano-banana-2': (args) => xfrm.arrNamed('image_input')({
 		...args,
-		"aspect_ratio": "1:1",
 		"resolution": "1K",
 		"output_format": "png",
 		"image_search": true,
@@ -184,7 +139,6 @@ const modelArgsAdapters = {
 	}),
 	'google/nano-banana-pro': (args) => xfrm.arrNamed('image_input')({
 		...args,
-		"aspect_ratio": "1:1",
 		"resolution": "1K",
 		"output_format": "png",
 		"allow_fallback_model": false,
@@ -194,7 +148,6 @@ const modelArgsAdapters = {
 		...args,
 		"quality": "high",
 		"background": "opaque",
-		"aspect_ratio": "1:1",
 		"output_format": "png",
 		"input_fidelity": "high",
 		"number_of_images": 1,
@@ -205,7 +158,6 @@ const modelArgsAdapters = {
 		...args,
 		"quality": "high",
 		"background": "opaque",
-		"aspect_ratio": "1:1",
 		"output_format": "png",
 		"input_fidelity": "high",
 		"number_of_images": 1,
@@ -216,7 +168,6 @@ const modelArgsAdapters = {
 
 	'google/nano-banana': (args) => xfrm.arrNamed('image_input')({
 		...args,
-		"aspect_ratio": "1:1",
 		"output_format": "png"
 		// no support for disable_safety_checker
 	}),
@@ -224,9 +175,6 @@ const modelArgsAdapters = {
 	'bytedance/seedream-4': (args) => xfrm.arrNamed('image_input')({
 		...args,
 		"size": "1K",
-		"aspect_ratio": "1:1",
-		"width": 1024,
-		"height": 1024,
 		"max_images": 1,
 		"enhance_prompt": false,
 		"sequential_image_generation": "disabled",
@@ -234,7 +182,6 @@ const modelArgsAdapters = {
 	}),
 	'prunaai/p-image-edit': (args) => xfrm.arrNamed('images')({
 		...args,
-		"aspect_ratio": "1:1",
 		turbo: true,
 		seed: randomSeed(),
 		disable_safety_checker: true,
@@ -247,7 +194,6 @@ const modelArgsAdapters = {
 		'character_reference'
 	])({
 		...args,
-		aspect_ratio: "1:1",
 		"image_reference_weight": 0.85,
 		"style_reference_weight": 0.85,
 		seed: randomSeed(),
@@ -258,8 +204,6 @@ const modelArgsAdapters = {
 		'mask'
 	])({
 		...args,
-		width: 1024,
-		height: 1024,
 		"scheduler": "K_EULER",
 		"num_outputs": 1,
 		"guidance_scale": 7.5,
@@ -278,7 +222,6 @@ const modelArgsAdapters = {
 	'qwen/qwen-image-edit': (args) => xfrm.imgNamed(['image'])({
 		...args,
 		"go_fast": true,
-		"aspect_ratio": "1:1",
 		seed: randomSeed(),
 		"output_format": "png",
 		// "output_quality": 100,
@@ -292,7 +235,6 @@ const modelArgsAdapters = {
 	}),
 	'minimax/image-01': (args) => xfrm.imgNamed(['subject_reference'])({
 		...args,
-		"aspect_ratio": "1:1",
 		"number_of_images": 1,
 		"prompt_optimizer": false,
 		// no support for disable_safety_checker
@@ -314,7 +256,6 @@ const modelArgsAdapters = {
 	// no image input
 	'qwen/qwen-image': (args) => xfrm.noImg({
 		...args,
-		"aspect_ratio": "1:1",
 		"go_fast": true,
 		"guidance": 4,
 		"strength": 0.9,
@@ -331,15 +272,12 @@ const modelArgsAdapters = {
 	'prunaai/p-image': (args) => xfrm.noImg({
 		"prompt_upsampling": false,
 		...args,
-		"aspect_ratio": "1:1",
 		seed: randomSeed(),
 		// "lora_scale": 0.5,
 		disable_safety_checker: true,
 	}),
 	'prunaai/z-image-turbo': (args) => xfrm.noImg({
 		...args,
-		"width": 1024,
-		"height": 1024,
 		"go_fast": false,
 		"output_format": "png",
 		"guidance_scale": 0,
@@ -353,21 +291,15 @@ const modelArgsAdapters = {
 		"style": "none",
 		"contrast": "medium",
 		"num_images": 1,
-		"aspect_ratio": "1:1",
 		"prompt_enhance": false,
 		"generation_mode": "standard",
 		// no support for disable_safety_checker
 	}),
 	'recraft-ai/recraft-v4': (args) => xfrm.noImg({
 		...args,
-		aspect_ratio: '1:1',
-		size: '1024x1024',
-		// no support for disable_safety_checker
 	}),
 	'bytedance/sdxl-lightning-4step': (args) => xfrm.noImg({
 		...args,
-		width: 1024,
-		height: 1024,
 		negative_prompt: SDXL_NEG,
 		seed: randomSeed(),
 		disable_safety_checker: true,
@@ -445,14 +377,15 @@ export async function generateReplicateImage(args = {}) {
 		);
 	}
 
-	const aspectPlan = resolveAspectRatioPlan(model, restArgs.aspect_ratio);
+	const aspectPlan = resolveAspectRatioPlan(model, method, restArgs.aspect_ratio);
 
 	const { model: _model, prompt: _prompt, aspect_ratio: _aspect, ...rest } = restArgs;
-	let input = { prompt, aspect_ratio: aspectPlan.apiAspectRatio, ...rest };
+	let input = { prompt, ...rest };
 	const adapter = modelArgsAdapters[baseModel];
 	if (adapter) {
 		input = adapter(input, ctx);
 	}
+	input = applyAspectPlanToInput(input, aspectPlan);
 	if (Object.prototype.hasOwnProperty.call(input, '_method')) {
 		delete input._method;
 	}
@@ -471,10 +404,10 @@ export async function generateReplicateImage(args = {}) {
 		inputKeys: Object.keys(input || {}),
 		...(aspectPlan.postProcess
 			? {
-					aspect_ratio_requested: aspectPlan.requested,
-					aspect_ratio_api: aspectPlan.apiAspectRatio,
-					aspect_ratio_post_process: aspectPlan.postProcess,
-				}
+				aspect_ratio_requested: aspectPlan.requested,
+				aspect_ratio_api: aspectPlan.apiAspectRatio,
+				aspect_ratio_post_process: aspectPlan.postProcess,
+			}
 			: {}),
 	});
 

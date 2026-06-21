@@ -1,3 +1,6 @@
+import { getSyntheticAspectRatioDef } from './syntheticAspectRatios.js';
+import { pickNearestNativeAspectRatio } from '../lib/aspectRatio.js';
+
 const fluxResolutionOptions = [
 	{ label: 'NES 8-bit', value: 'nes_8bit' },
 	{ label: 'SNES 16-bit', value: 'snes_16bit' },
@@ -8,6 +11,89 @@ const fluxResolutionOptions = [
 
 /** replicate method: aspect ratios advertised to host. */
 const ASPECT_RATIO_OPTIONS = ['1:1', '4:5', '9:16', '16:9'];
+
+/** Native API ratios shared by most Replicate image models (4:5 is synthetic via 3:4). */
+const DEFAULT_NATIVE_ASPECT_RATIOS = ['1:1', '9:16', '16:9', '3:4'];
+
+function replicateModelBase(modelRef) {
+	return String(modelRef ?? '').split(':')[0].trim();
+}
+
+function findReplicateModelEntry(method, modelRef) {
+	const base = replicateModelBase(modelRef);
+	const list = method === 'replicatePro' ? replicateProModels : replicateModels;
+	return (
+		list.find(
+			(o) => typeof o.value === 'string' && o.value.split(':')[0].trim() === base
+		) ?? null
+	);
+}
+
+/**
+ * Resolve client aspect_ratio to API input and optional post-processing (e.g. 4:5 via 3:4 crop).
+ * @param {string} modelRef
+ * @param {'replicate' | 'replicatePro'} method
+ * @param {string} [raw]
+ */
+function resolveAspectRatioPlan(modelRef, method, raw) {
+	const requested = String(raw ?? '').trim() || '1:1';
+	const base = replicateModelBase(modelRef);
+	const entry = findReplicateModelEntry(method, modelRef);
+
+	if (!ASPECT_RATIO_OPTIONS.includes(requested)) {
+		throw new Error(
+			`Unsupported aspect_ratio "${requested}". Allowed: ${ASPECT_RATIO_OPTIONS.join(', ')}`
+		);
+	}
+
+	const nativeRatios = entry?.native_aspect_ratios ?? DEFAULT_NATIVE_ASPECT_RATIOS;
+	const nativeSet = new Set(nativeRatios);
+
+	const syntheticDef = getSyntheticAspectRatioDef(requested);
+	if (syntheticDef) {
+		const optedIn =
+			Array.isArray(entry?.synthetic_aspect_ratios) &&
+			entry.synthetic_aspect_ratios.includes(requested);
+		const defaultSynthetic =
+			entry?.synthetic_aspect_ratios == null &&
+			nativeSet.has(syntheticDef.generateAs);
+		if ((optedIn || defaultSynthetic) && nativeSet.has(syntheticDef.generateAs)) {
+			return {
+				requested,
+				apiAspectRatio: syntheticDef.generateAs,
+				postProcess: {
+					target: syntheticDef.key,
+					mode: syntheticDef.postProcess,
+				},
+				usesDimensions: Boolean(entry?.uses_dimensions),
+				usesRecraftSize: Boolean(entry?.uses_recraft_size),
+			};
+		}
+	}
+
+	if (nativeSet.has(requested)) {
+		return {
+			requested,
+			apiAspectRatio: requested,
+			postProcess: null,
+			usesDimensions: Boolean(entry?.uses_dimensions),
+			usesRecraftSize: Boolean(entry?.uses_recraft_size),
+		};
+	}
+
+	const nearest = pickNearestNativeAspectRatio(requested, [...nativeSet]);
+	if (!nearest) {
+		throw new Error(`aspect_ratio "${requested}" is not supported for ${base}`);
+	}
+
+	return {
+		requested,
+		apiAspectRatio: nearest,
+		postProcess: { target: requested, mode: 'crop' },
+		usesDimensions: Boolean(entry?.uses_dimensions),
+		usesRecraftSize: Boolean(entry?.uses_recraft_size),
+	};
+}
 
 const replicateModels = [
 	{
@@ -54,7 +140,8 @@ const replicateModels = [
 	{
 		label: 'PrunaAI Z-Image Turbo',
 		value: 'prunaai/z-image-turbo',
-		hint: 'No input image support.'
+		hint: 'No input image support.',
+		uses_dimensions: true,
 	},
 	{
 		label: 'Luma Photon',
@@ -74,18 +161,21 @@ const replicateModels = [
 	{
 		label: 'Recraft V4',
 		value: 'recraft-ai/recraft-v4',
-		hint: 'No input image support. Low censorship.'
+		hint: 'No input image support. Low censorship.',
+		uses_recraft_size: true,
 	},
 
 	{
 		label: 'ByteDance SDXL Lightning 4-step',
 		value: 'bytedance/sdxl-lightning-4step:6f7a773af6fc3e8de9d5a3c00be77c17308914bf67772726aff83496ba1e3bbe',
 		hint: 'No input image support.  Low censorship.',
+		uses_dimensions: true,
 	},
 	{
 		label: 'Stability AI SDXL',
 		value: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
 		hint: 'Supports multiple image inputs [image, mask].  Low censorship.',
+		uses_dimensions: true,
 	},
 
 	// { label: 'OpenAI GPT-Image 1.5', value: 'openai/gpt-image-1.5' }, // 0.14 credits
@@ -357,6 +447,17 @@ const generationMethods = {
 				type: 'text',
 				required: true,
 			},
+			aspect_ratio: {
+				label: 'Aspect Ratio',
+				type: 'select',
+				hidden: true,
+				required: false,
+				default: '1:1',
+				options: ASPECT_RATIO_OPTIONS.map((value) => ({
+					label: value,
+					value,
+				})),
+			},
 			input_images: {
 				label: 'Input Images',
 				type: 'image_url_array',
@@ -454,4 +555,8 @@ export {
 	replicateProModels,
 	replicateVideoModels,
 	ASPECT_RATIO_OPTIONS,
+	DEFAULT_NATIVE_ASPECT_RATIOS,
+	findReplicateModelEntry,
+	replicateModelBase,
+	resolveAspectRatioPlan,
 };
