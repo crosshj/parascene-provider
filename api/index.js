@@ -182,6 +182,22 @@ export default async function handler(req, res) {
 						missing_fields: missingFields,
 					});
 				}
+
+				const tooLong = [];
+				for (const [fieldName, fieldDef] of Object.entries(fields)) {
+					const max = Number(fieldDef.max_length);
+					if (!Number.isFinite(max) || max <= 0) continue;
+					const value = args[fieldName];
+					if (typeof value === 'string' && value.length > max) {
+						tooLong.push(`${fieldName} (max ${max})`);
+					}
+				}
+				if (tooLong.length > 0) {
+					return res.status(400).json({
+						error: `Argument too long: ${tooLong.join(', ')}`,
+						method: body.method,
+					});
+				}
 			}
 
 			const generator = methodHandlers[body.method];

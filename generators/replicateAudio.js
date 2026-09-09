@@ -9,6 +9,7 @@ import {
 	REPLICATE_VOICE_CLONE_SLUG,
 	SPEECH_MODEL_GEMINI,
 	SPEECH_MODEL_MINIMAX,
+	SPEECH_PROMPT_MAX_CHARS,
 	VOICE_TRAIN_PREVIEW_TEXT,
 } from '../config/audioVoices.js';
 import {
@@ -36,6 +37,9 @@ export function buildSpeechInput(args = {}) {
 	const model = String(args.model ?? '').trim();
 	const prompt = String(args.prompt ?? '').trim();
 	if (!prompt) throw new Error('Replicate speech prompt is required');
+	if (prompt.length > SPEECH_PROMPT_MAX_CHARS) {
+		throw new Error(`Speech prompt must be at most ${SPEECH_PROMPT_MAX_CHARS} characters`);
+	}
 
 	if (model === SPEECH_MODEL_MINIMAX) {
 		const voice = String(args.voice ?? '').trim();

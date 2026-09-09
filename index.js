@@ -633,6 +633,10 @@ function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) 
 		input = document.createElement('textarea');
 		const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
 		input.rows = isJsonField ? 6 : 3;
+		const maxLength = Number(fieldDef.max_length);
+		if (Number.isFinite(maxLength) && maxLength > 0) {
+			input.maxLength = maxLength;
+		}
 	} else if (fieldDef.type === 'url' || fieldDef.type === 'image_url' || fieldDef.type === 'audio_url') {
 		input = document.createElement('input');
 		input.type = 'url';

@@ -89,6 +89,9 @@ export const REPLICATE_VOICE_CLONE_MODEL = 'speech-02-hd';
 export const VOICE_TRAIN_PREVIEW_TEXT =
 	'The birch canoe slid on the smooth planks. Glue the sheet to the dark blue background.';
 
+/** Spoken line cap so 2 credits (~3.4¢) covers Gemini (~30s) and MiniMax. */
+export const SPEECH_PROMPT_MAX_CHARS = 400;
+
 export const SPEECH_MODEL_MINIMAX = 'minimax/speech-2.8-turbo';
 export const SPEECH_MODEL_GEMINI = 'google/gemini-3.1-flash-tts';
 export const MUSIC_MODEL_LYRIA = 'google/lyria-3';

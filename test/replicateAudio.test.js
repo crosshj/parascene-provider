@@ -6,6 +6,7 @@ import {
 	MINIMAX_SPEECH_VOICE_OPTIONS,
 	SPEECH_MODEL_GEMINI,
 	SPEECH_MODEL_MINIMAX,
+	SPEECH_PROMPT_MAX_CHARS,
 } from '../config/audioVoices.js';
 import {
 	buildMusicInput,
@@ -39,6 +40,10 @@ describe('replicate audio capabilities', () => {
 
 	it('registers speech, music, and voice train methods', () => {
 		expect(generationMethods.replicateSpeech.intent).toBe('audio_generate');
+		expect(generationMethods.replicateSpeech.credits).toBe(2);
+		expect(generationMethods.replicateSpeech.fields.prompt.max_length).toBe(
+			SPEECH_PROMPT_MAX_CHARS
+		);
 		expect(generationMethods.replicateMusic.intent).toBe('audio_generate');
 		expect(generationMethods.replicateVoiceTrain.intent).toBe('voice_train');
 		expect(generationMethods.replicateVoiceTrain.credits).toBe(175);
@@ -107,6 +112,15 @@ describe('buildSpeechInput', () => {
 			text: 'Hello',
 			voice_id: 'English_expressive_narrator',
 		});
+	});
+
+	it('rejects a speech prompt over the character cap', () => {
+		expect(() =>
+			buildSpeechInput({
+				model: SPEECH_MODEL_MINIMAX,
+				prompt: 'x'.repeat(SPEECH_PROMPT_MAX_CHARS + 1),
+			})
+		).toThrow(/at most 400 characters/);
 	});
 
 	it('maps Gemini text, voice, and style', () => {

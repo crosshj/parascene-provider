@@ -5,6 +5,7 @@ import {
 	MINIMAX_SPEECH_EMOTIONS,
 	MINIMAX_SPEECH_VOICE_OPTIONS,
 	SPEECH_MODEL_GEMINI,
+	SPEECH_PROMPT_MAX_CHARS,
 	SPEECH_MODEL_MINIMAX,
 	MUSIC_MODEL_LYRIA,
 	MUSIC_MODEL_MINIMAX,
@@ -597,6 +598,8 @@ const generationMethods = {
 				label: 'Prompt',
 				type: 'text',
 				required: true,
+				max_length: SPEECH_PROMPT_MAX_CHARS,
+				hint: `Max ${SPEECH_PROMPT_MAX_CHARS} characters`,
 			},
 		},
 	},
@@ -604,7 +607,8 @@ const generationMethods = {
 		name: 'Replicate Music',
 		description: 'Run a Replicate text-to-music model.',
 		intent: 'audio_generate',
-		credits: 8,
+		// Grouped Lyria ($0.04) + Music 2.6 ($0.15). 10 credits ≈ $0.17
+		credits: 10,
 		async: true,
 		fields: {
 			model: {
