@@ -34,6 +34,27 @@ function sendImageResponse(res, result, credits) {
 	return res.send(result.buffer);
 }
 
+function sendAudioResponse(res, result, credits) {
+	const audioBuffer = result?.audioBuffer;
+	if (!audioBuffer || !Buffer.isBuffer(audioBuffer)) {
+		return res.status(500).json({
+			error: 'Invalid audio buffer returned from generator',
+		});
+	}
+	const contentType =
+		typeof result.contentType === 'string' && result.contentType.startsWith('audio/')
+			? result.contentType
+			: 'audio/mpeg';
+	res.setHeader('Content-Type', contentType);
+	res.setHeader('Content-Length', audioBuffer.length);
+	res.setHeader('Cache-Control', 'no-cache');
+	res.setHeader('X-Credits', String(credits));
+	if (typeof result.voice_id === 'string' && result.voice_id.trim()) {
+		res.setHeader('X-Voice-Id', result.voice_id.trim());
+	}
+	return res.send(audioBuffer);
+}
+
 function sendVideoResponse(res, result, credits) {
 	const videoBuffer = result?.videoBuffer;
 	if (!videoBuffer || !Buffer.isBuffer(videoBuffer)) {
@@ -183,7 +204,16 @@ export default async function handler(req, res) {
 				return sendVideoResponse(res, result, credits);
 			}
 
-			// 2) Image response: presence of buffer
+			// 2) Audio response: presence of audioBuffer (voice train may also include JSON voice_id)
+			if (result && result.audioBuffer && result.voice_id) {
+				res.setHeader('X-Voice-Id', String(result.voice_id));
+				return sendAudioResponse(res, result, credits);
+			}
+			if (result && result.audioBuffer) {
+				return sendAudioResponse(res, result, credits);
+			}
+
+			// 3) Image response: presence of buffer
 			if (result && result.buffer) {
 				return sendImageResponse(res, result, credits);
 			}

@@ -4,6 +4,8 @@ import {
 	replicateModels,
 	replicateProModels,
 	replicateVideoModels,
+	replicateSpeechModels,
+	replicateMusicModels,
 	resolveAspectRatioPlan,
 } from '../config/generationMethods.js';
 import { fitImageToAspectRatio, dimensionsForAspectRatioLongEdge } from '../lib/aspectRatio.js';
@@ -11,7 +13,7 @@ import { log, fetchImageBuffer } from './utils.js';
 
 const REPLICATE_MODEL_REF_RE = /^([^/]+)\/([^/:]+)(?::(.+))?$/;
 
-function resolveSelectModel(scope, raw) {
+export function resolveSelectModel(scope, raw) {
 	const s = String(raw ?? '').trim();
 	if (!s || s.includes(':')) return s;
 	const list =
@@ -19,7 +21,11 @@ function resolveSelectModel(scope, raw) {
 			? replicateProModels
 			: scope === 'replicateVideo'
 				? replicateVideoModels
-				: replicateModels;
+				: scope === 'replicateSpeech'
+					? replicateSpeechModels
+					: scope === 'replicateMusic'
+						? replicateMusicModels
+						: replicateModels;
 	const hit = list.find(
 		(o) => typeof o.value === 'string' && o.value.split(':')[0].trim() === s
 	);
@@ -27,7 +33,7 @@ function resolveSelectModel(scope, raw) {
 }
 
 /** Digested refs must use `{ version }` for predictions.create (SDK route shape). */
-function replicatePredictionBody(ref, input) {
+export function replicatePredictionBody(ref, input) {
 	const m = String(ref).trim().match(REPLICATE_MODEL_REF_RE);
 	if (!m) throw new Error(`Invalid Replicate model reference: ${ref}`);
 	return m[3] ? { version: m[3], input } : { model: `${m[1]}/${m[2]}`, input };
@@ -313,7 +319,7 @@ const modelArgsAdapters = {
  * @param {unknown} output
  * @returns {string}
  */
-function getFirstImageUrl(output) {
+export function getFirstImageUrl(output) {
 	if (output == null) {
 		throw new Error('Replicate run returned no output');
 	}

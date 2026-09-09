@@ -1,5 +1,14 @@
 import { getSyntheticAspectRatioDef } from './syntheticAspectRatios.js';
 import { pickNearestNativeAspectRatio } from '../lib/aspectRatio.js';
+import {
+	GEMINI_SYSTEM_VOICES,
+	MINIMAX_SPEECH_EMOTIONS,
+	MINIMAX_SPEECH_VOICE_OPTIONS,
+	SPEECH_MODEL_GEMINI,
+	SPEECH_MODEL_MINIMAX,
+	MUSIC_MODEL_LYRIA,
+	MUSIC_MODEL_MINIMAX,
+} from './audioVoices.js';
 
 const fluxResolutionOptions = [
 	{ label: 'NES 8-bit', value: 'nes_8bit' },
@@ -234,6 +243,85 @@ const replicateVideoModels = [
 		label: 'Wan Video 2.2 i2v Fast',
 		value: 'wan-video/wan-2.2-i2v-fast',
 		hint: 'Image-to-video (i2v), fast.',
+	},
+];
+
+const replicateSpeechModels = [
+	{
+		label: 'MiniMax Speech 2.8 Turbo',
+		value: SPEECH_MODEL_MINIMAX,
+		hint: 'Narration',
+		fields: {
+			voice: {
+				label: 'Voice',
+				type: 'select',
+				required: false,
+				options: MINIMAX_SPEECH_VOICE_OPTIONS,
+			},
+			voice_id: {
+				label: 'Voice ID',
+				type: 'text',
+				hidden: true,
+				required: false,
+				show_when: { field: 'voice', equals: 'custom' },
+			},
+			emotion: {
+				label: 'Emotion',
+				type: 'select',
+				required: false,
+				options: MINIMAX_SPEECH_EMOTIONS,
+			},
+		},
+	},
+	{
+		label: 'Gemini 3.1 Flash TTS',
+		value: SPEECH_MODEL_GEMINI,
+		hint: 'Narration / replacement line',
+		fields: {
+			voice: {
+				label: 'Voice',
+				type: 'select',
+				required: false,
+				options: GEMINI_SYSTEM_VOICES,
+			},
+			style: {
+				label: 'Style',
+				type: 'text',
+				required: false,
+			},
+		},
+	},
+];
+
+const replicateMusicModels = [
+	{
+		label: 'Lyria 3',
+		value: MUSIC_MODEL_LYRIA,
+		hint: 'Dramatic background score · 30s',
+	},
+	{
+		label: 'MiniMax Music 2.6',
+		value: MUSIC_MODEL_MINIMAX,
+		hint: 'Song / MV track',
+		fields: {
+			lyrics: {
+				label: 'Lyrics',
+				type: 'text',
+				required: false,
+			},
+			is_instrumental: {
+				label: 'Instrumental',
+				type: 'boolean',
+				required: false,
+				default: false,
+			},
+			lyrics_optimizer: {
+				label: 'Lyrics optimizer',
+				type: 'boolean',
+				required: false,
+				default: false,
+			},
+		},
 	},
 ];
 
@@ -491,6 +579,64 @@ const generationMethods = {
 			},
 		},
 	},
+	replicateSpeech: {
+		name: 'Replicate Speech',
+		description: 'Run a Replicate text-to-speech model.',
+		intent: 'audio_generate',
+		credits: 2,
+		async: true,
+		fields: {
+			model: {
+				label: 'Model',
+				type: 'select',
+				required: true,
+				default: SPEECH_MODEL_GEMINI,
+				options: replicateSpeechModels,
+			},
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+		},
+	},
+	replicateMusic: {
+		name: 'Replicate Music',
+		description: 'Run a Replicate text-to-music model.',
+		intent: 'audio_generate',
+		credits: 8,
+		async: true,
+		fields: {
+			model: {
+				label: 'Model',
+				type: 'select',
+				required: true,
+				default: MUSIC_MODEL_LYRIA,
+				options: replicateMusicModels,
+			},
+			prompt: {
+				label: 'Prompt',
+				type: 'text',
+				required: true,
+			},
+		},
+	},
+	replicateVoiceTrain: {
+		name: 'Replicate Voice Train',
+		description:
+			'Train a custom voice from an audio file via Replicate. Returns voice_id plus a short preview clip.',
+		intent: 'voice_train',
+		// Founder: $12 / 700 credits → $3.00 user cost at 175
+		credits: 175,
+		async: true,
+		fields: {
+			voice_file: {
+				label: 'Voice file',
+				type: 'audio_url',
+				required: true,
+			},
+		},
+	},
 	// fluxPoeticImage: {
 	// 	name: 'Poetic Image (Zydeco + Flux)',
 	// 	description:
@@ -554,6 +700,8 @@ export {
 	replicateModels,
 	replicateProModels,
 	replicateVideoModels,
+	replicateSpeechModels,
+	replicateMusicModels,
 	ASPECT_RATIO_OPTIONS,
 	DEFAULT_NATIVE_ASPECT_RATIOS,
 	findReplicateModelEntry,

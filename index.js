@@ -48,6 +48,11 @@ const REPLICATE_DEFAULTS = {
 	prompt: 'A lone knight stands upon a battlefield drowned in silence, his armor scarred and his blade heavy with blood. From the corpses of his slain foes rise shadowy spirits—vengeful shades that coil and writhe like living smoke. Their hollow eyes burn with hatred, their twisted forms clawing at the knight, covering him in a shroud of darkness. The air trembles with their whispers of vengeance, a chorus of rage that binds him to the weight of his triumph. Lightning splits the storm-choked sky, illuminating the knight as both conqueror and cursed, a figure draped in the wrathful shadows of the souls he has condemned.',
 };
 
+const METHOD_PROMPT_DEFAULTS = {
+	replicateSpeech: 'The night market is still open.',
+	replicateMusic: 'Warm night market, soft strings under lantern light, no vocals',
+};
+
 function loadGenerationControls() {
 	try {
 		const raw = localStorage.getItem(CONTROLS_STORAGE_KEY);
@@ -61,6 +66,101 @@ function loadGenerationControls() {
 
 function isConfigHiddenField(fieldDef) {
 	return fieldDef?.hidden === true || fieldDef?.hidden === 'true';
+}
+
+/** Always-off unless "Show hidden fields". `show_when` fields stay in the form and toggle themselves. */
+function isAlwaysHiddenField(fieldDef) {
+	return isConfigHiddenField(fieldDef) && !fieldDef?.show_when;
+}
+
+function fieldMatchesShowWhen(fieldDef, values) {
+	const rule = fieldDef?.show_when;
+	if (!rule?.field) return true;
+	return String(values[rule.field] ?? '') === String(rule.equals ?? '');
+}
+
+function methodMediaKind(method) {
+	const intent = String(method?.intent || '').toLowerCase();
+	const key = String(method?.name || '').toLowerCase();
+	if (
+		intent.includes('audio') ||
+		intent.includes('voice') ||
+		intent.includes('speech') ||
+		intent.includes('music') ||
+		key.includes('speech') ||
+		key.includes('music') ||
+		key.includes('voice')
+	) {
+		return 'audio';
+	}
+	if (intent.includes('video') || key.includes('video')) return 'video';
+	return 'image';
+}
+
+function collectNamedInputValues(root) {
+	const values = {};
+	if (!root) return values;
+	for (const input of root.querySelectorAll('[name]')) {
+		const name = input.getAttribute('name');
+		if (!name) continue;
+		const group = input.closest('.form-group');
+		if (group && group.style.display === 'none') continue;
+		if (input.type === 'checkbox') {
+			values[name] = input.checked;
+		} else if ('value' in input) {
+			values[name] = input.value;
+		}
+	}
+	return values;
+}
+
+function selectedOptionExtraFields(method) {
+	const extra = {};
+	for (const [fieldName, def] of Object.entries(method?.fields || {})) {
+		if (def?.type !== 'select' || !Array.isArray(def.options)) continue;
+		const live =
+			document.getElementById(`field_${fieldName}`) ||
+			document.querySelector(`[name="${fieldName}"]`);
+		const value = live && 'value' in live ? live.value : def.default;
+		const opt = def.options.find((o) => String(o.value) === String(value));
+		if (opt?.fields && typeof opt.fields === 'object') {
+			Object.assign(extra, opt.fields);
+		}
+	}
+	return extra;
+}
+
+function applyConditionalFields() {
+	const root = document.getElementById('methodFields');
+	const values = collectNamedInputValues(root);
+	for (const group of root?.querySelectorAll('[data-show-when-field]') ?? []) {
+		const field = group.getAttribute('data-show-when-field');
+		const equals = group.getAttribute('data-show-when-equals');
+		group.style.display =
+			String(values[field] ?? '') === String(equals ?? '') ? '' : 'none';
+	}
+}
+
+function refreshDependentFields(methodKey) {
+	const method = capabilities?.methods?.[methodKey];
+	const fieldsDiv = document.getElementById('methodFields');
+	if (!method || !fieldsDiv) return;
+	const host =
+		document.getElementById('optionFieldsHost') ||
+		(() => {
+			const el = document.createElement('div');
+			el.id = 'optionFieldsHost';
+			const fieldGroup = fieldsDiv.querySelector('.field-group');
+			(fieldGroup || fieldsDiv).appendChild(el);
+			return el;
+		})();
+	host.innerHTML = '';
+	const extra = selectedOptionExtraFields(method);
+	for (const [fieldName, fieldDef] of Object.entries(extra)) {
+		if (isAlwaysHiddenField(fieldDef)) continue;
+		appendMethodFieldFormGroup(host, methodKey, fieldName, fieldDef);
+	}
+	applyConditionalFields();
 }
 
 function methodHasConfigHiddenFields(fields) {
@@ -98,27 +198,23 @@ function saveAsyncStateForMethod(methodKey) {
 	} catch { }
 }
 
+function persistableFieldValue(value) {
+	if (typeof value !== 'string') return value;
+	if (value.startsWith('data:') || value.startsWith('blob:')) return '';
+	return value;
+}
+
 function getCurrentFieldValues(methodKeyToRead) {
 	if (!methodKeyToRead || !capabilities?.methods?.[methodKeyToRead]) return {};
 	const method = capabilities.methods[methodKeyToRead];
-	const fields = method.fields || {};
-	const values = {};
-	for (const fieldName of Object.keys(fields)) {
-		const fieldDef = fields[fieldName];
-		const isHidden = isConfigHiddenField(fieldDef);
-		const input =
-			document.getElementById(`field_${fieldName}`) ||
-			document.querySelector(`[name="${fieldName}"]`);
-		if (!input) {
-			if (isHidden && fieldDef?.default != null && fieldDef.default !== '') {
-				values[fieldName] = String(fieldDef.default);
-			}
-			continue;
-		}
-		if (fieldDef?.type === 'boolean') {
-			values[fieldName] = input.checked;
-		} else if ('value' in input) {
-			values[fieldName] = input.value;
+	const values = collectNamedInputValues(document.getElementById('methodFields'));
+	for (const [fieldName, value] of Object.entries(values)) {
+		values[fieldName] = persistableFieldValue(value);
+	}
+	for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
+		if (fieldName in values) continue;
+		if (isAlwaysHiddenField(fieldDef) && fieldDef?.default != null && fieldDef.default !== '') {
+			values[fieldName] = String(fieldDef.default);
 		}
 	}
 	return values;
@@ -177,12 +273,31 @@ window.addEventListener('DOMContentLoaded', () => {
 	document.getElementById('authToken').addEventListener('input', (e) => {
 		localStorage.setItem('parascene_api_token', e.target.value);
 	});
+
+	document.getElementById('jsonModal')?.addEventListener('click', (event) => {
+		if (event.target.closest('[data-close-json-modal]')) closeJsonModal();
+	});
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape') closeJsonModal();
+	});
 });
 
-function toggleJson(toggle) {
-	toggle.classList.toggle('expanded');
-	const content = toggle.nextElementSibling;
-	content.classList.toggle('expanded');
+let _capabilitiesJsonText = '';
+
+function openJsonModal() {
+	const modal = document.getElementById('jsonModal');
+	const body = document.getElementById('jsonModalBody');
+	if (!modal || !body) return;
+	body.textContent = _capabilitiesJsonText || '{}';
+	modal.hidden = false;
+	document.body.classList.add('json-modal-open');
+}
+
+function closeJsonModal() {
+	const modal = document.getElementById('jsonModal');
+	if (!modal) return;
+	modal.hidden = true;
+	document.body.classList.remove('json-modal-open');
 }
 
 async function fetchCapabilities() {
@@ -212,10 +327,10 @@ async function fetchCapabilities() {
 		}
 
 		capabilities = { ...data, methods: { ...data.methods, ...SPECIAL_METHODS } };
+		_capabilitiesJsonText = JSON.stringify(data, null, 2);
 		resultDiv.innerHTML = `
 			<div class="success">✓ Authenticated successfully</div>
-			<div class="json-toggle" onclick="toggleJson(this)">Capabilities JSON Response</div>
-			<div class="json-content"><pre>${JSON.stringify(data, null, 2)}</pre></div>
+			<button type="button" class="json-toggle" onclick="openJsonModal()">Capabilities JSON Response</button>
 		`;
 
 		// Populate method dropdown (includes special methods for testing)
@@ -247,6 +362,247 @@ async function fetchCapabilities() {
 	}
 }
 
+let voiceRecorderSession = null;
+
+/** IEEE Harvard sentences — phoneme-rich, ~15s at a natural pace. MiniMax wants ≥10s. */
+const VOICE_TRAIN_SCRIPT =
+	'The birch canoe slid on the smooth planks. Glue the sheet to the dark blue background. It is easy to tell the depth of a well. The juice of lemons makes fine punch.';
+
+function formatRecordClock(ms) {
+	const total = Math.max(0, Math.floor(ms / 1000));
+	const minutes = Math.floor(total / 60);
+	const seconds = String(total % 60).padStart(2, '0');
+	return `${minutes}:${seconds}`;
+}
+
+function pickRecorderMimeType() {
+	const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+	if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+		return '';
+	}
+	return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? '';
+}
+
+function mixToMono(buffer) {
+	const length = buffer.length;
+	const channels = buffer.numberOfChannels;
+	const mono = new Float32Array(length);
+	for (let ch = 0; ch < channels; ch += 1) {
+		const data = buffer.getChannelData(ch);
+		for (let i = 0; i < length; i += 1) mono[i] += data[i];
+	}
+	if (channels > 1) {
+		for (let i = 0; i < length; i += 1) mono[i] /= channels;
+	}
+	return mono;
+}
+
+function resampleMono(samples, fromRate, toRate) {
+	if (fromRate === toRate) return samples;
+	const ratio = fromRate / toRate;
+	const length = Math.max(1, Math.round(samples.length / ratio));
+	const out = new Float32Array(length);
+	for (let i = 0; i < length; i += 1) {
+		const src = i * ratio;
+		const i0 = Math.floor(src);
+		const i1 = Math.min(i0 + 1, samples.length - 1);
+		const t = src - i0;
+		out[i] = samples[i0] * (1 - t) + samples[i1] * t;
+	}
+	return out;
+}
+
+function encodeWavMono16(samples, sampleRate) {
+	const dataSize = samples.length * 2;
+	const out = new ArrayBuffer(44 + dataSize);
+	const view = new DataView(out);
+	const writeStr = (offset, text) => {
+		for (let i = 0; i < text.length; i += 1) view.setUint8(offset + i, text.charCodeAt(i));
+	};
+	writeStr(0, 'RIFF');
+	view.setUint32(4, 36 + dataSize, true);
+	writeStr(8, 'WAVE');
+	writeStr(12, 'fmt ');
+	view.setUint32(16, 16, true);
+	view.setUint16(20, 1, true);
+	view.setUint16(22, 1, true);
+	view.setUint32(24, sampleRate, true);
+	view.setUint32(28, sampleRate * 2, true);
+	view.setUint16(32, 2, true);
+	view.setUint16(34, 16, true);
+	writeStr(36, 'data');
+	view.setUint32(40, dataSize, true);
+	let offset = 44;
+	for (let i = 0; i < samples.length; i += 1) {
+		const s = Math.max(-1, Math.min(1, samples[i]));
+		view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+		offset += 2;
+	}
+	return out;
+}
+
+async function blobToVoiceWav(blob) {
+	const Ctx = window.AudioContext || window.webkitAudioContext;
+	if (!Ctx) throw new Error('Web Audio is not available in this browser');
+	const ctx = new Ctx();
+	try {
+		const raw = await blob.arrayBuffer();
+		const decoded = await ctx.decodeAudioData(raw.slice(0));
+		const mono = resampleMono(mixToMono(decoded), decoded.sampleRate, 16000);
+		const wav = encodeWavMono16(mono, 16000);
+		const bytes = new Uint8Array(wav);
+		let binary = '';
+		for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+		return {
+			dataUrl: `data:audio/wav;base64,${btoa(binary)}`,
+			wavBlob: new Blob([wav], { type: 'audio/wav' }),
+		};
+	} finally {
+		await ctx.close().catch(() => {});
+	}
+}
+
+function stopVoiceRecorderSession() {
+	if (!voiceRecorderSession) return;
+	voiceRecorderSession.teardown();
+	voiceRecorderSession = null;
+}
+
+function appendVoiceRecorder(formGroup, input, setPreviewSrc) {
+	const hint = document.createElement('p');
+	hint.className = 'voice-recorder-hint';
+	hint.textContent =
+		'Read this aloud, naturally, in a quiet room. MiniMax needs at least 10 seconds; this is about 15.';
+
+	const script = document.createElement('blockquote');
+	script.className = 'voice-recorder-script';
+	script.textContent = VOICE_TRAIN_SCRIPT;
+
+	const row = document.createElement('div');
+	row.className = 'voice-recorder';
+
+	const recordBtn = document.createElement('button');
+	recordBtn.type = 'button';
+	recordBtn.className = 'btn-secondary';
+	recordBtn.textContent = 'Record';
+
+	const status = document.createElement('span');
+	status.className = 'voice-recorder-status';
+	status.textContent = 'Stay on the script · one speaker';
+
+	row.appendChild(recordBtn);
+	row.appendChild(status);
+	formGroup.appendChild(hint);
+	formGroup.appendChild(script);
+	formGroup.appendChild(row);
+
+	let mediaRecorder = null;
+	let chunks = [];
+	let stream = null;
+	let startedAt = 0;
+	let tick = null;
+	let previewUrl = '';
+
+	const setStatus = (text) => {
+		status.textContent = text;
+	};
+
+	const revokePreview = () => {
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		previewUrl = '';
+	};
+
+	const stopTracks = () => {
+		for (const track of stream?.getTracks() ?? []) track.stop();
+		stream = null;
+	};
+
+	const clearTick = () => {
+		if (tick) window.clearInterval(tick);
+		tick = null;
+	};
+
+	const teardown = () => {
+		clearTick();
+		if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+			try {
+				mediaRecorder.stop();
+			} catch { /* already stopped */ }
+		}
+		mediaRecorder = null;
+		stopTracks();
+		revokePreview();
+	};
+
+	voiceRecorderSession = { teardown };
+
+	const finishRecording = async (blob, elapsedMs) => {
+		recordBtn.disabled = true;
+		setStatus('Encoding WAV…');
+		try {
+			const { dataUrl, wavBlob } = await blobToVoiceWav(blob);
+			revokePreview();
+			previewUrl = URL.createObjectURL(wavBlob);
+			input.value = dataUrl;
+			setPreviewSrc(previewUrl);
+			saveGenerationControls();
+			setStatus(`Recorded ${formatRecordClock(elapsedMs)} · ready to train`);
+		} catch (error) {
+			setStatus(error?.message || 'Could not encode recording');
+		} finally {
+			recordBtn.disabled = false;
+			recordBtn.textContent = 'Record again';
+		}
+	};
+
+	recordBtn.addEventListener('click', async () => {
+		if (mediaRecorder && mediaRecorder.state === 'recording') {
+			mediaRecorder.stop();
+			return;
+		}
+		if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+			setStatus('Recording is not available in this browser');
+			return;
+		}
+		try {
+			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		} catch {
+			setStatus('Microphone permission denied');
+			return;
+		}
+		const mimeType = pickRecorderMimeType();
+		chunks = [];
+		mediaRecorder = mimeType
+			? new MediaRecorder(stream, { mimeType })
+			: new MediaRecorder(stream);
+		startedAt = Date.now();
+		mediaRecorder.addEventListener('dataavailable', (event) => {
+			if (event.data?.size) chunks.push(event.data);
+		});
+		mediaRecorder.addEventListener('stop', () => {
+			clearTick();
+			stopTracks();
+			const elapsedMs = Date.now() - startedAt;
+			const type = mediaRecorder?.mimeType || mimeType || 'audio/webm';
+			mediaRecorder = null;
+			const blob = new Blob(chunks, { type });
+			chunks = [];
+			if (!blob.size) {
+				setStatus('No audio captured');
+				recordBtn.textContent = 'Record';
+				return;
+			}
+			void finishRecording(blob, elapsedMs);
+		});
+		mediaRecorder.start();
+		recordBtn.textContent = 'Stop';
+		setStatus(`Recording ${formatRecordClock(0)}`);
+		tick = window.setInterval(() => {
+			setStatus(`Recording ${formatRecordClock(Date.now() - startedAt)}`);
+		}, 250);
+	});
+}
+
 function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) {
 	const formGroup = document.createElement('div');
 	formGroup.className = 'form-group';
@@ -267,12 +623,17 @@ function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) 
 		formGroup.appendChild(hintEl);
 	}
 
+	if (fieldDef.show_when?.field) {
+		formGroup.dataset.showWhenField = String(fieldDef.show_when.field);
+		formGroup.dataset.showWhenEquals = String(fieldDef.show_when.equals ?? '');
+	}
+
 	let input;
 	if (fieldDef.type === 'text' || fieldDef.type === 'json-object' || fieldDef.type === 'image_url_array') {
 		input = document.createElement('textarea');
 		const isJsonField = fieldDef.type === 'json-object' || (fieldDef.label && String(fieldDef.label).includes('JSON'));
 		input.rows = isJsonField ? 6 : 3;
-	} else if (fieldDef.type === 'url') {
+	} else if (fieldDef.type === 'url' || fieldDef.type === 'image_url' || fieldDef.type === 'audio_url') {
 		input = document.createElement('input');
 		input.type = 'url';
 		input.autocapitalize = 'off';
@@ -325,9 +686,26 @@ function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) 
 		input.value = typeof fieldDef.default === 'string' ? fieldDef.default : JSON.stringify(fieldDef.default, null, 2);
 	} else if ((input.value === '' || input.value === undefined) && methodKey === 'replicate' && REPLICATE_DEFAULTS[fieldName] !== undefined) {
 		input.value = String(REPLICATE_DEFAULTS[fieldName]);
+	} else if (
+		(input.value === '' || input.value === undefined) &&
+		fieldName === 'prompt' &&
+		METHOD_PROMPT_DEFAULTS[methodKey]
+	) {
+		input.value = METHOD_PROMPT_DEFAULTS[methodKey];
 	}
-	input.addEventListener('change', saveGenerationControls);
-	input.addEventListener('input', saveGenerationControls);
+	input.addEventListener('change', () => {
+		saveGenerationControls();
+		const optionHasNestedFields =
+			fieldDef.type === 'select' &&
+			Array.isArray(fieldDef.options) &&
+			fieldDef.options.some((opt) => opt.fields);
+		if (optionHasNestedFields) refreshDependentFields(methodKey);
+		else applyConditionalFields();
+	});
+	input.addEventListener('input', () => {
+		saveGenerationControls();
+		applyConditionalFields();
+	});
 	formGroup.appendChild(input);
 
 	if (fieldDef.type === 'select' && fieldDef.options?.some((opt) => opt.hint)) {
@@ -346,7 +724,7 @@ function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) 
 		formGroup.appendChild(selectHint);
 	}
 
-	if (fieldName === 'image_url') {
+	if (fieldName === 'image_url' || fieldDef.type === 'image_url') {
 		const preview = document.createElement('img');
 		preview.style.maxWidth = '100%';
 		preview.style.marginTop = '8px';
@@ -364,6 +742,34 @@ function appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef) 
 		});
 
 		formGroup.appendChild(preview);
+	}
+
+	if (fieldName === 'voice_file' || fieldDef.type === 'audio_url') {
+		const preview = document.createElement('audio');
+		preview.controls = true;
+		preview.preload = 'metadata';
+		preview.className = 'audio-url-preview';
+
+		const setPreviewSrc = (src) => {
+			const next = String(src ?? '').trim();
+			if (!next) {
+				preview.removeAttribute('src');
+				preview.style.display = 'none';
+				return;
+			}
+			preview.src = next;
+			preview.style.display = 'block';
+		};
+
+		input.addEventListener('input', () => {
+			setPreviewSrc(input.value);
+		});
+
+		formGroup.appendChild(preview);
+		if (fieldName === 'voice_file' || methodKey === 'replicateVoiceTrain') {
+			appendVoiceRecorder(formGroup, input, setPreviewSrc);
+		}
+		if (input.value.trim()) setPreviewSrc(input.value);
 	}
 
 	if (methodKey === 'advanced_generate' && fieldName === 'image_url') {
@@ -419,6 +825,7 @@ function updateMethodFields() {
 
 	const method = capabilities.methods[methodKey];
 	const showHiddenFields = getShowHiddenFieldsPreference();
+	stopVoiceRecorderSession();
 	fieldsDiv.innerHTML = '';
 
 	if (method.description) {
@@ -431,14 +838,14 @@ function updateMethodFields() {
 
 	const fields = method.fields || {};
 	const fieldEntries = Object.entries(fields);
-	const hasHiddenFields = methodHasConfigHiddenFields(fields);
+	const hasHiddenFields = Object.values(fields).some(isAlwaysHiddenField);
 
 	if (fieldEntries.length > 0) {
 		const fieldGroup = document.createElement('div');
 		fieldGroup.className = 'field-group';
 
 		for (const [fieldName, fieldDef] of fieldEntries) {
-			if (isConfigHiddenField(fieldDef)) continue;
+			if (isAlwaysHiddenField(fieldDef)) continue;
 			appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef);
 		}
 
@@ -446,13 +853,18 @@ function updateMethodFields() {
 			appendShowHiddenFieldsToggle(fieldGroup, showHiddenFields);
 			if (showHiddenFields) {
 				for (const [fieldName, fieldDef] of fieldEntries) {
-					if (!isConfigHiddenField(fieldDef)) continue;
+					if (!isAlwaysHiddenField(fieldDef)) continue;
 					appendMethodFieldFormGroup(fieldGroup, methodKey, fieldName, fieldDef);
 				}
 			}
 		}
 
+		const optionHost = document.createElement('div');
+		optionHost.id = 'optionFieldsHost';
+		fieldGroup.appendChild(optionHost);
+
 		fieldsDiv.appendChild(fieldGroup);
+		refreshDependentFields(methodKey);
 
 		// Advanced generate: toggle image_url visibility by operation
 		if (methodKey === 'advanced_generate') {
@@ -508,7 +920,7 @@ function updateMethodFields() {
 		hint.style.color = '#6b7280';
 		hint.style.marginTop = '4px';
 		hint.textContent =
-			'When enabled, this method returns JSON with a job_id instead of an image/video. Use the Job ID field below to manually poll.';
+			'When enabled, this method returns JSON with a job_id instead of media bytes. Use the Job ID field below to manually poll.';
 		asyncGroup.appendChild(hint);
 
 		// Optional Job ID input for polling existing async jobs (UI-only; not part of capabilities)
@@ -583,13 +995,17 @@ async function generateImage() {
 	}
 	let args = {};
 	const fieldsContainer = document.getElementById('methodFields');
+	const extraFields = selectedOptionExtraFields(method);
+	const allFieldDefs = { ...(method.fields || {}), ...extraFields };
 
 	// Collect field values from inputs in the method form (by id or name so we always find them)
-	for (const [fieldName, fieldDef] of Object.entries(method.fields || {})) {
-		const isHidden = isConfigHiddenField(fieldDef);
+	for (const [fieldName, fieldDef] of Object.entries(allFieldDefs)) {
+		const isHidden = isAlwaysHiddenField(fieldDef);
 		const input =
 			document.getElementById(`field_${fieldName}`) ||
 			(fieldsContainer && fieldsContainer.querySelector(`[name="${fieldName}"]`));
+		const group = input?.closest('.form-group');
+		if (group && group.style.display === 'none') continue;
 		if (!input) {
 			if (isHidden && fieldDef.default != null && fieldDef.default !== '') {
 				args[fieldName] = String(fieldDef.default);
@@ -696,7 +1112,10 @@ async function generateImage() {
 			imagePanel.innerHTML =
 				'<div class="image-loading">Starting async job… response will be JSON with job_id and polling info.</div>';
 		} else {
-			imagePanel.innerHTML = '<div class="image-loading">Generating image…</div>';
+			const kind = methodMediaKind(method);
+			const noun =
+				kind === 'audio' ? 'audio' : kind === 'video' ? 'video' : 'image';
+			imagePanel.innerHTML = `<div class="image-loading">Generating ${noun}…</div>`;
 		}
 	}
 
@@ -724,11 +1143,17 @@ async function generateImage() {
 		}
 
 		const contentType = response.headers.get('Content-Type') || '';
-		if (contentType.includes('application/json')) {
+		const mediaType = contentType.split(';')[0].trim().toLowerCase();
+		if (mediaType.includes('json') || contentType.includes('application/json')) {
 			const jsonData = await response.json();
 			if (imagePanel) {
 				imagePanel.classList.add('has-content');
-				imagePanel.innerHTML = `<pre class="json-result">${JSON.stringify(jsonData, null, 2)}</pre>`;
+				const voiceId =
+					typeof jsonData?.voice_id === 'string' ? jsonData.voice_id.trim() : '';
+				const voiceNote = voiceId
+					? `<div class="result-meta">voice_id: ${voiceId}</div>`
+					: '';
+				imagePanel.innerHTML = `${voiceNote}<pre class="json-result">${JSON.stringify(jsonData, null, 2)}</pre>`;
 			}
 
 			// If this is an async job response with a job_id, update poll state
@@ -778,10 +1203,15 @@ async function generateImage() {
 
 		const blob = await response.blob();
 		const objectUrl = URL.createObjectURL(blob);
+		const voiceId = (response.headers.get('X-Voice-Id') || '').trim();
+		const voiceNote = voiceId
+			? `<div class="result-meta">voice_id: ${voiceId}</div>`
+			: '';
+		const blobType = (blob.type || mediaType).split(';')[0].trim().toLowerCase();
 
 		if (imagePanel) {
 			imagePanel.classList.add('has-content');
-			if (contentType.startsWith('video/')) {
+			if (blobType.startsWith('video/')) {
 				imagePanel.innerHTML = `
 					<video
 						id="videoResult"
@@ -791,9 +1221,28 @@ async function generateImage() {
 						loop
 					></video>
 				`;
+			} else if (blobType.startsWith('audio/')) {
+				imagePanel.innerHTML = `
+					<audio
+						id="audioResult"
+						src="${objectUrl}"
+						controls
+						autoplay
+					></audio>
+					${voiceNote}
+				`;
 			} else {
 				imagePanel.innerHTML = `<img id="imageResult" src="${objectUrl}" alt="Generated image" />`;
 			}
+		}
+		_currentAsyncJobId = null;
+		if (pollBtn) pollBtn.style.display = 'none';
+		if (generateBtn) generateBtn.style.display = '';
+		const jobGroup = document.getElementById('asyncJobGroup');
+		if (jobGroup) {
+			jobGroup.style.display = 'none';
+			const jobInput = document.getElementById('asyncJobId');
+			if (jobInput) jobInput.value = '';
 		}
 	} catch (error) {
 		if (imagePanel) {
@@ -850,7 +1299,8 @@ async function pollAsyncJob() {
 
 // Expose functions globally for inline event handlers
 window.fetchCapabilities = fetchCapabilities;
-window.toggleJson = toggleJson;
+window.openJsonModal = openJsonModal;
+window.closeJsonModal = closeJsonModal;
 window.updateMethodFields = updateMethodFields;
 window.generateImage = generateImage;
 window.pollAsyncJob = pollAsyncJob;

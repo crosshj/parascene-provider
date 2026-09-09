@@ -67,6 +67,29 @@ body {
 	border-radius: 6px;
 	display: block;
 }
+
+.app-image-panel.has-content audio {
+	position: absolute;
+	left: 16px;
+	right: 16px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: calc(100% - 32px);
+}
+
+.app-image-panel.has-content .result-meta {
+	position: absolute;
+	left: 12px;
+	right: 12px;
+	bottom: 12px;
+	margin: 0;
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: rgba(15, 23, 42, 0.72);
+	color: #e2e8f0;
+	font-size: 13px;
+	word-break: break-all;
+}
 .app-forms-panel {
 	background: white;
 	border-radius: 8px;
@@ -151,6 +174,52 @@ button:hover {
 button:disabled {
 	background: #cbd2d9;
 	cursor: not-allowed;
+}
+.btn-secondary {
+	background: transparent;
+	color: #334155;
+	border: 1px solid #cbd2d9;
+	padding: 6px 12px;
+}
+.btn-secondary:hover {
+	background: #f1f5f9;
+	color: #1f2933;
+}
+.btn-secondary:disabled {
+	background: transparent;
+	color: #94a3b8;
+	border-color: #e2e8f0;
+}
+.voice-recorder {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+}
+.voice-recorder-hint {
+	margin: 8px 0 6px;
+	font-size: 13px;
+	color: #616e7c;
+	line-height: 1.4;
+}
+.voice-recorder-script {
+	margin: 0;
+	padding: 10px 12px;
+	border-left: 3px solid #3b82f6;
+	background: #eff6ff;
+	border-radius: 0 6px 6px 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: #1f2933;
+}
+.voice-recorder-status {
+	font-size: 13px;
+	color: #616e7c;
+}
+.audio-url-preview {
+	display: none;
+	width: 100%;
+	margin-top: 8px;
 }
 .error {
 	color: #dc2626;
@@ -250,6 +319,9 @@ pre {
 	margin: 1em 0;
 }
 .json-toggle {
+	display: block;
+	width: 100%;
+	text-align: left;
 	cursor: pointer;
 	user-select: none;
 	padding: 8px 12px;
@@ -258,6 +330,7 @@ pre {
 	border-radius: 4px;
 	margin-top: 12px;
 	font-size: 13px;
+	font-weight: 500;
 	color: #64748b;
 	transition: background 0.2s;
 }
@@ -265,19 +338,88 @@ pre {
 	background: #e2e8f0;
 }
 .json-toggle::before {
-	content: '▶ ';
-	display: inline-block;
-	transition: transform 0.2s;
+	content: '↗ ';
 }
-.json-toggle.expanded::before {
-	transform: rotate(90deg);
+
+body.json-modal-open {
+	overflow: hidden;
 }
-.json-content {
+
+.json-modal[hidden] {
 	display: none;
-	margin-top: 8px;
 }
-.json-content.expanded {
-	display: block;
+
+.json-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+
+.json-modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.55);
+}
+
+.json-modal-dialog {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	width: min(880px, 100%);
+	max-height: min(80vh, 720px);
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 16px 48px rgba(15, 23, 42, 0.28);
+	overflow: hidden;
+}
+
+.json-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid #e2e8f0;
+}
+
+.json-modal-header h3 {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.json-modal-close {
+	background: transparent;
+	color: #64748b;
+	padding: 0;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	font-size: 22px;
+	line-height: 1;
+}
+
+.json-modal-close:hover {
+	background: #f1f5f9;
+	color: #1f2933;
+}
+
+.json-modal-body {
+	margin: 0;
+	padding: 16px;
+	overflow: auto;
+	flex: 1;
+	background: #f8fafc;
+	border-radius: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-break: break-word;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -313,6 +455,28 @@ pre {
 	button:disabled {
 		background: #334155;
 		color: #64748b;
+	}
+	.btn-secondary {
+		color: #e2e8f0;
+		border-color: #334155;
+	}
+	.btn-secondary:hover {
+		background: #0f172a;
+		color: #e2e8f0;
+	}
+	.btn-secondary:disabled {
+		background: transparent;
+		color: #64748b;
+		border-color: #334155;
+	}
+	.voice-recorder-hint,
+	.voice-recorder-status {
+		color: #94a3b8;
+	}
+	.voice-recorder-script {
+		background: #0f172a;
+		border-left-color: #3b82f6;
+		color: #e2e8f0;
 	}
 	.error {
 		color: #fca5a5;
@@ -357,5 +521,23 @@ pre {
 	}
 	.json-toggle:hover {
 		background: #1e293b;
+	}
+	.json-modal-dialog {
+		background: #1e293b;
+		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+	}
+	.json-modal-header {
+		border-bottom-color: #334155;
+	}
+	.json-modal-close {
+		color: #94a3b8;
+	}
+	.json-modal-close:hover {
+		background: #0f172a;
+		color: #e2e8f0;
+	}
+	.json-modal-body {
+		background: #0f172a;
+		color: #e2e8f0;
 	}
 }

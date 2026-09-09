@@ -10,7 +10,7 @@
 		<div class="app-layout">
 			<!-- Left: image only -->
 			<div class="app-image-panel" id="generationImageColumn">
-				<div class="image-placeholder" id="imagePlaceholder">Generated image will appear here</div>
+				<div class="image-placeholder" id="imagePlaceholder">Generated image, video, or audio will appear here</div>
 			</div>
 
 			<!-- Right: all forms in one panel -->
@@ -43,6 +43,19 @@
 						</button>
 					</div>
 				</section>
+			</div>
+		</div>
+
+		<div id="jsonModal" class="json-modal" hidden>
+			<div class="json-modal-backdrop" data-close-json-modal></div>
+			<div class="json-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="jsonModalTitle">
+				<div class="json-modal-header">
+					<h3 id="jsonModalTitle">Capabilities JSON Response</h3>
+					<button type="button" class="json-modal-close" data-close-json-modal aria-label="Close">
+						×
+					</button>
+				</div>
+				<pre id="jsonModalBody" class="json-modal-body"></pre>
 			</div>
 		</div>
 
